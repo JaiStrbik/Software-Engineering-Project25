@@ -1,2 +1,0 @@
-#SEQTA Messages Filter
-
