@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Sign Up{% endblock %}
+
+{% block additional_styles %}
+<style>
+    .signup-card {
+        max-width: 500px;
+        margin: 50px auto;
+        padding: 30px;
+        border-radius: 10px;
+    }
+    .form-floating {
+        margin-bottom: 20px;
+    }
+    .password-requirements {
+        font-size: 0.9rem;
+        margin-top: -15px;
+        margin-bottom: 15px;
+    }
+    .requirement {
+        margin-bottom: 5px;
+    }
+    .requirement i {
+        width: 20px;
+    }
+    .requirement.valid {
+        color: #198754;
+    }
+    .requirement.invalid {
+        color: #dc3545;
+    }
+    .btn-signup {
+        width: 100%;
+        padding: 12px;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card signup-card shadow">
+    <div class="text-center mb-4">
+        <i class="fas fa-user-plus display-1 text-primary"></i>
+        <h2 class="fw-bold">Create Account</h2>
+        <p class="text-muted">Join our community today</p>
+    </div>
+    
+    <form action="{{ url_for('signup') }}" method="post" id="signupForm">
+        <div class="form-floating">
+            <input type="text" class="form-control" id="username" name="username" placeholder="Username" required>
+            <label for="username">Choose a Username</label>
+        </div>
+        
+        <div class="form-floating">
+            <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
+            <label for="password">Choose a Password</label>
+        </div>
+        
+        <div class="password-requirements mb-4">
+            <p class="mb-2 fw-bold">Password must contain:</p>
+            <div class="requirement" id="letter-requirement">
+                <i class="fas fa-times-circle"></i> At least one letter
+            </div>
+            <div class="requirement" id="number-requirement">
+                <i class="fas fa-times-circle"></i> At least one number
+            </div>
+            <div class="requirement" id="special-requirement">
+                <i class="fas fa-times-circle"></i> At least one special character
+            </div>
+        </div>
+        
+        <button type="submit" class="btn btn-primary btn-signup">
+            <i class="fas fa-user-plus me-2"></i>Create Account
+        </button>
+    </form>
+    
+    <div class="text-center mt-4">
+        <p>Already have an account? <a href="{{ url_for('login') }}">Login here</a></p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const passwordInput = document.getElementById('password');
+    const letterRequirement = document.getElementById('letter-requirement');
+    const numberRequirement = document.getElementById('number-requirement');
+    const specialRequirement = document.getElementById('special-requirement');
+    
+    passwordInput.addEventListener('keyup', function() {
+        // Validate letter
+        const hasLetter = /[A-Za-z]/.test(passwordInput.value);
+        updateRequirement(letterRequirement, hasLetter);
+        
+        // Validate number
+        const hasNumber = /[0-9]/.test(passwordInput.value);
+        updateRequirement(numberRequirement, hasNumber);
+        
+        // Validate special character
+        const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(passwordInput.value);
+        updateRequirement(specialRequirement, hasSpecial);
+    });
+    
+    function updateRequirement(element, isValid) {
+        if (isValid) {
+            element.classList.add('valid');
+            element.classList.remove('invalid');
+            element.querySelector('i').className = 'fas fa-check-circle';
+        } else {
+            element.classList.add('invalid');
+            element.classList.remove('valid');
+            element.querySelector('i').className = 'fas fa-times-circle';
+        }
+    }
+    
+    document.getElementById('signupForm').addEventListener('submit', function(event) {
+        const submitButton = this.querySelector('button[type="submit"]');
+        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creating account...';
+        submitButton.disabled = true;
+    });
+</script>
+{% endblock %}

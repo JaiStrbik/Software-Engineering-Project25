@@ -1,35 +1,24 @@
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
-
-import sqlite3
 from werkzeug.security import generate_password_hash
+from setup_db import User
 
-DATABASE = 'app_database.db'
+# Connect to the database
+engine = create_engine('sqlite:///messages.db')
+Session = sessionmaker(bind=engine)
+session = Session()
 
+# Function to add a user to the database
 def add_user(username, password):
-    try:
-        conn = sqlite3.connect(DATABASE)
-        cursor = conn.cursor()
+    hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
+    new_user = User(username=username, password=hashed_password)
+    session.add(new_user)
+    session.commit()
 
-        # Hash the password before storing it
-        hashed_password = generate_password_hash(password)
-
-        # Insert user into the database
-        cursor.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, hashed_password))
-        conn.commit()
-        print(f"User {username} added successfully.")
-    except sqlite3.IntegrityError:
-        print(f"Error: Username {username} already exists.")
-    finally:
-        conn.close()
-
+# Function to get a user from the database by username
 def get_user(username):
-    conn = sqlite3.connect(DATABASE)
-    cursor = conn.cursor()
+    return session.query(User).filter_by(username=username).first()
 
-    # Query user by username
-    cursor.execute('SELECT * FROM users WHERE username = ?', (username,))
-    user = cursor.fetchone()
-    conn.close()
-
-    return user
+# Function to get a user from the database by ID
+def get_user_by_id(user_id):
+    return session.query(User).filter_by(id=user_id).first()
