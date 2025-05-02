@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+        }
+        .navbar {
+            background-color: #343a40;
+        }
+        .navbar-brand, .nav-link {
+            color: #ffffff !important;
+        }
+        .navbar-brand:hover, .nav-link:hover {
+            color: #d4d4d4 !important;
+        }
+        .container {
+            margin-top: 50px;
+        }
+    </style>
+</head>
+<body>
+    {% extends "base.html" %}
+
+    {% block title %}Welcome{% endblock %}
+
+    {% block content %}
+    <div class="container text-center">
+        <h1 class="my-5">Welcome to the Task Manager</h1>
+        <p class="lead">Efficiently manage your tasks and boost your productivity.</p>
+        {% if 'user_id' not in session %}
+        <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg mx-2">Login</a>
+        <a href="{{ url_for('signup') }}" class="btn btn-secondary btn-lg mx-2">Sign Up</a>
+        {% else %}
+        <a href="{{ url_for('dashboard') }}" class="btn btn-success btn-lg">Go to Dashboard</a>
+        {% endif %}
+        <a href="{{ url_for('dashboard') }}" class="btn btn-success btn-lg">Go to Dashboard</a>
+    </div>
+    {% endblock %}
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>
