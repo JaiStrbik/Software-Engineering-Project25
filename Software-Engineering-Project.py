@@ -64,21 +64,17 @@ def dashboard():
     if 'user_id' not in session:
         flash("You need to log in to access the dashboard.", "error")
         return redirect(url_for('login'))
-    
+
     # Get user info and messages
     user = get_user_by_id(session['user_id'])
-    
-    # Calculate days as member (mock data for now)
-    days_member = 30
-    
+
     # Format messages with timestamp
     messages = db_session.query(Messages).filter_by(user_id=session['user_id']).all()
     for message in messages:
         message.created_at = datetime.now()  # Mock timestamp
-    
+
     return render_template('dashboard.html', 
                            username=session.get('username', 'User'),
-                           days_member=days_member,
                            messages=messages)
 
 @app.route('/create_message', methods=["POST"])
@@ -86,18 +82,23 @@ def create_message():
     if 'user_id' not in session:
         flash("You need to log in to create a message.", "error")
         return redirect(url_for('login'))
-    
+
     message_text = request.form.get('name')
-    
+    severity = request.form.get('severity')
+
     if not message_text or len(message_text) < 1:
         flash("Message cannot be empty.", "error")
         return redirect(url_for('dashboard'))
-    
+
+    if severity not in ["positive", "negative"]:
+        flash("Invalid severity selected.", "error")
+        return redirect(url_for('dashboard'))
+
     # Create new message
-    new_message = Messages(name=message_text, user_id=session['user_id'])
+    new_message = Messages(name=message_text, user_id=session['user_id'], severity=severity)
     db_session.add(new_message)
     db_session.commit()
-    
+
     flash("Message posted successfully!", "success")
     return redirect(url_for('dashboard'))
 
@@ -138,4 +139,3 @@ if __name__ == "__main__":
 
 
 
-# Test

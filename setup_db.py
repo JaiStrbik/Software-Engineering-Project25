@@ -20,5 +20,6 @@ class Messages(Base):
     name = Column(String, nullable=False)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    severity = Column(String, nullable=False)  # New column for severity
 
 Base.metadata.create_all(bind=engine)

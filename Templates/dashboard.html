@@ -81,15 +81,6 @@
             </div>
         </div>
         <div class="col-md-4 mb-4">
-            <div class="stat-card bg-success">
-                <div class="stat-icon">
-                    <i class="fas fa-calendar-alt"></i>
-                </div>
-                <h3>{{ days_member }}</h3>
-                <p>Days as Member</p>
-            </div>
-        </div>
-        <div class="col-md-4 mb-4">
             <div class="stat-card bg-info">
                 <div class="stat-icon">
                     <i class="fas fa-user"></i>
@@ -97,20 +88,6 @@
                 <h3>{{ username }}</h3>
                 <p>Username</p>
             </div>
-        </div>
-    </div>
-
-    <div class="card compose-card shadow-sm">
-        <div class="card-body">
-            <h5 class="card-title">Create a New Message</h5>
-            <form action="{{ url_for('create_message') }}" method="post">
-                <div class="mb-3">
-                    <input type="text" class="form-control" id="message-name" name="name" placeholder="Enter message text" required>
-                </div>
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-paper-plane me-2"></i>Post Message
-                </button>
-            </form>
         </div>
     </div>
 
@@ -143,10 +120,35 @@
         <div class="text-center text-muted">
             <i class="fas fa-comment-slash display-1 mb-3"></i>
             <h4>No messages yet</h4>
-            <p>Create your first message using the form above</p>
+            <p>Create your first message using the form below</p>
         </div>
     </div>
     {% endif %}
+
+    <div class="card compose-card shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title">Create a New Message</h5>
+            <form action="{{ url_for('create_message') }}" method="post">
+                <div class="mb-3">
+                    <input type="text" class="form-control" id="message-name" name="name" placeholder="Enter message text" required>
+                </div>
+                <div class="mb-3">
+                    <label for="message-severity" class="form-label">Select Severity</label>
+                    <select class="form-control" id="message-severity" name="severity" required>
+                        <option value="positive">Positive</option>
+                        <option value="negative">Negative</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="standardized-message" class="form-label">Standardized Message</label>
+                    <input type="text" class="form-control" id="standardized-message" name="standardized_message" placeholder="Standardized message will appear here" readonly>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-paper-plane me-2"></i>Post Message
+                </button>
+            </form>
+        </div>
+    </div>
     {% endblock %}
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
