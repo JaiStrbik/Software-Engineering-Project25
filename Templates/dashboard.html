@@ -110,6 +110,12 @@
                     <p class="card-text text-muted message-date">
                         <i class="fas fa-clock me-1"></i>{{ message.created_at.strftime('%B %d, %Y at %I:%M %p') }}
                     </p>
+                    {% if message.standardized_message %}
+                    <div class="mt-2">
+                        <h6 class="text-primary">Standardized Pastoral Message:</h6>
+                        <p class="card-text">{{ message.standardized_message }}</p>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -127,13 +133,13 @@
 
     <div class="card compose-card shadow-sm">
         <div class="card-body">
-            <h5 class="card-title">Create a New Message</h5>
-            <form action="{{ url_for('create_message') }}" method="post">
+            <h5 class="card-title">Pastoral Message</h5>
+            <form action="{{ url_for('create_message') }}" method="post" id="message-form">
                 <div class="mb-3">
-                    <input type="text" class="form-control" id="message-name" name="name" placeholder="Enter message text" required>
+                    <input type="text" class="form-control" id="message-name" name="name" placeholder="" required>
                 </div>
                 <div class="mb-3">
-                    <label for="message-severity" class="form-label">Select Severity</label>
+                    <label for="message-severity" class="form-label">Select Category</label>
                     <select class="form-control" id="message-severity" name="severity" required>
                         <option value="positive">Positive</option>
                         <option value="negative">Negative</option>
@@ -153,5 +159,46 @@
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    
+    <!-- Add the AJAX functionality for OpenAI integration -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            let typingTimer;
+            const doneTypingInterval = 1000; // Wait 1 second after typing stops
+            
+            // When user inputs text and selects a category
+            $('#message-name, #message-severity').on('input change', function() {
+                clearTimeout(typingTimer);
+                
+                const messageText = $('#message-name').val().trim();
+                const category = $('#message-severity').val();
+                
+                if (messageText.length > 3) { // Only process if text is at least 3 characters
+                    $('#standardized-message').val('Generating standardized message...');
+                    
+                    // Set timer to process after user stops typing
+                    typingTimer = setTimeout(function() {
+                        // Send AJAX request to backend
+                        $.ajax({
+                            url: '/standardize_message',
+                            type: 'POST',
+                            data: {
+                                message: messageText,
+                                category: category
+                            },
+                            success: function(response) {
+                                $('#standardized-message').val(response.standardized_message);
+                            },
+                            error: function(error) {
+                                console.error('Error:', error);
+                                $('#standardized-message').val('Error generating standardized message');
+                            }
+                        });
+                    }, doneTypingInterval);
+                }
+            });
+        });
+    </script>
 </body>
 </html>

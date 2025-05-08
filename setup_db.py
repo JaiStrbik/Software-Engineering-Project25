@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, DateTime, Text
 from sqlalchemy.orm import relationship, sessionmaker, scoped_session, declarative_base
 from datetime import datetime
 
@@ -20,6 +20,7 @@ class Messages(Base):
     name = Column(String, nullable=False)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
-    severity = Column(String, nullable=False)  # New column for severity
+    severity = Column(String, nullable=False)  # Column for severity (positive/negative)
+    standardized_message = Column(Text)  # New column for storing standardized messages from OpenAI
 
 Base.metadata.create_all(bind=engine)
