@@ -4,37 +4,52 @@ import re
 from datetime import datetime
 from setup_db import User, Messages, engine, db_session
 from query_db import add_user, get_user, get_user_by_id
-import openai
+from openai import OpenAI
+from openai import openai
 import os
-from dotenv import load_dotenv  # ✅ Load environment variables
-
-# Load .env variables
+from dotenv import load_dotenv
 load_dotenv()
-
-# Configure OpenAI key from .env
 openai.api_key = os.getenv("OPENAI_API_KEY")
-
-# Flag for OpenAI availability
-OPENAI_AVAILABLE = True
-
-# Test OpenAI connection on startup
-try:
-    response = openai.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "system", "content": "Connection test"}],
-        max_tokens=5,
-        temperature=0.5
-    )
-    print("✅ OpenAI API connected successfully.")
-except Exception as e:
-    print(f"⚠️ Warning: OpenAI API initialization error: {e}")
-    OPENAI_AVAILABLE = False
-
-DEFAULT_FALLBACK = "The message could not be processed at this time."
-
+# Initialize Flask application
 app = Flask(__name__, template_folder='Templates')
 app.secret_key = 'your_secret_key'  # Replace in production
 
+# OpenAI client initialization with your API key
+client = OpenAI(api_key="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")
+
+# Define the standardize_message_with_openai function
+def standardize_message_with_openai(message_text, category):
+    try:
+        if category == "positive":
+            prompt = f"Transform this message into a standardized positive pastoral message: '{message_text}'"
+        else:
+            prompt = f"Transform this message into a standardized pastoral message that addresses concerns: '{message_text}'"
+
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a pastoral assistant that rephrases messages to be professional and compassionate."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=150,
+            temperature=0.7
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"OpenAI error: {e}")
+        return "The message could not be processed at this time."
+
+# Route for the standardize_message API endpoint
+@app.route('/standardize_message', methods=["POST"])
+def standardize_message_api():
+    message_text = request.form.get('message')
+    category = request.form.get('category')
+
+    if not message_text or not category:
+        return jsonify({"error": "Missing message or category"}), 400
+
+    standardized_message = standardize_message_with_openai(message_text, category)
+    return jsonify({"standardized_message": standardized_message})
 
 @app.route('/')
 def title_page():
@@ -163,48 +178,6 @@ def logout():
     flash("You have been logged out successfully.", "success")
     return redirect(url_for('title_page'))
 
-
-@app.route('/standardize_message', methods=["POST"])
-def standardize_message_api():
-    message_text = request.form.get('message')
-    category = request.form.get('category')
-
-    if not message_text or not category:
-        return jsonify({"error": "Missing message or category"}), 400
-
-    standardized_message = standardize_message_with_openai(message_text, category)
-    return jsonify({"standardized_message": standardized_message})
-
-
-def standardize_message_with_openai(message_text, category):
-    if OPENAI_AVAILABLE:
-        try:
-            if category == "positive":
-                prompt = f"Transform this message into a standardized positive pastoral message: '{message_text}'"
-            else:
-                prompt = f"Transform this message into a standardized pastoral message that addresses concerns: '{message_text}'"
-
-            response = openai.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": "You are a pastoral assistant that rephrases messages to be professional and compassionate."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=150,
-                temperature=0.7
-            )
-            return response.choices[0].message.content.strip()
-        except Exception as e:
-            print(f"OpenAI error: {e}")
-
-    return local_standardize_message(message_text, category)
-
-
-def local_standardize_message(message_text, category):
-    if category == "positive":
-        return "I'd like to highlight a positive development we've recently observed and appreciate the progress."
-    else:
-        return "There are a few concerns that may be worth discussing to support improvement."
 
 
 @app.teardown_appcontext
