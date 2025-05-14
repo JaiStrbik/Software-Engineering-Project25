@@ -1,71 +1,44 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard</title>
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f8f9fa;
-        }
-        .navbar {
-            background-color: #343a40;
-        }
-        .navbar-brand, .nav-link {
-            color: #ffffff !important;
-        }
-        .navbar-brand:hover, .nav-link:hover {
-            color: #d4d4d4 !important;
-        }
-        .container {
-            margin-top: 50px;
-        }
-    </style>
-</head>
-<body>
-    {% extends "base.html" %}
+{% extends "base.html" %}
 
-    {% block title %}Dashboard{% endblock %}
+{% block title %}Dashboard{% endblock %}
 
-    {% block additional_styles %}
-    <style>
-        .dashboard-stats {
-            margin-bottom: 30px;
-        }
-        .stat-card {
-            border-radius: 10px;
-            padding: 20px;
-            position: relative;
-            overflow: hidden;
-        }
-        .stat-card .stat-icon {
-            position: absolute;
-            right: 20px;
-            top: 20px;
-            font-size: 3rem;
-            opacity: 0.2;
-        }
-        .message-card {
-            transition: all 0.3s;
-        }
-        .message-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-        }
-        .compose-card {
-            margin-bottom: 30px;
-        }
-        .message-date {
-            font-size: 0.85rem;
-        }
-        .no-messages {
-            padding: 50px 0;
-            text-align: center;
-        }
-    </style>
-    {% endblock %}
+{% block additional_styles %}
+<style>
+    .dashboard-stats {
+        margin-bottom: 30px;
+    }
+    .stat-card {
+        border-radius: 10px;
+        padding: 20px;
+        position: relative;
+        overflow: hidden;
+    }
+    .stat-card .stat-icon {
+        position: absolute;
+        right: 20px;
+        top: 20px;
+        font-size: 3rem;
+        opacity: 0.2;
+    }
+    .message-card {
+        transition: all 0.3s;
+    }
+    .message-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    .compose-card {
+        margin-bottom: 30px;
+    }
+    .message-date {
+        font-size: 0.85rem;
+    }
+    .no-messages {
+        padding: 50px 0;
+        text-align: center;
+    }
+</style>
+{% endblock %}
 
     {% block content %}
     <h1 class="mb-4">Dashboard</h1>
@@ -133,16 +106,29 @@
 
     <div class="card compose-card shadow-sm">
         <div class="card-body">
-            <h5 class="card-title">Pastoral Message</h5>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="card-title mb-0">Pastoral Message</h5>
+                <a href="{{ url_for('generate_message') }}" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-magic mr-1"></i> AI Message Generator
+                </a>
+            </div>
             <form action="{{ url_for('create_message') }}" method="post" id="message-form">
                 <div class="mb-3">
-                    <input type="text" class="form-control" id="message-name" name="name" placeholder="" required>
+                    <input type="text" class="form-control" id="message-name" name="name" placeholder="Enter your message" required>
                 </div>
                 <div class="mb-3">
-                    <label for="message-severity" class="form-label">Select Category</label>
-                    <select class="form-control" id="message-severity" name="severity" required>
-                        <option value="positive">Positive</option>
-                        <option value="negative">Negative</option>
+                    <label for="subcategory" class="form-label">Subcategory:</label>
+                    <select class="form-control" id="subcategory" name="subcategory" required>
+                        <optgroup label="Positive">
+                            <option value="Affirmation">Affirmation</option>
+                            <option value="Merit/Record of Achievement">Merit/Record of Achievement</option>
+                        </optgroup>
+                        <optgroup label="Negative">
+                            <option value="Informal Conversation">Informal Conversation</option>
+                            <option value="Challenge">Challenge</option>
+                            <option value="White Card">White Card</option>
+                            <option value="Friday Detention">Friday Detention</option>
+                        </optgroup>
                     </select>
                 </div>
                 <div class="mb-3">
@@ -155,50 +141,53 @@
             </form>
         </div>
     </div>
-    {% endblock %}
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-    
-    <!-- Add the AJAX functionality for OpenAI integration -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            let typingTimer;
-            const doneTypingInterval = 1000; // Wait 1 second after typing stops
+{% endblock %}
+
+{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function() {
+        let typingTimer;
+        const doneTypingInterval = 1000; // Wait 1 second after typing stops
+        
+        // When user inputs text and selects a subcategory
+        $('#message-name, #subcategory').on('input change', function() {
+            clearTimeout(typingTimer);
             
-            // When user inputs text and selects a category
-            $('#message-name, #message-severity').on('input change', function() {
-                clearTimeout(typingTimer);
+            const messageText = $('#message-name').val().trim();
+            const subcategory = $('#subcategory').val();
+            
+            if (messageText.length > 3 && subcategory) { // Only process if text is at least 3 characters and subcategory is selected
+                $('#standardized-message').val('Generating standardized message...');
                 
-                const messageText = $('#message-name').val().trim();
-                const category = $('#message-severity').val();
-                
-                if (messageText.length > 3) { // Only process if text is at least 3 characters
-                    $('#standardized-message').val('Generating standardized message...');
-                    
-                    // Set timer to process after user stops typing
-                    typingTimer = setTimeout(function() {
-                        // Send AJAX request to backend
-                        $.ajax({
-                            url: '/standardize_message',
-                            type: 'POST',
-                            data: {
-                                message: messageText,
-                                category: category
-                            },
-                            success: function(response) {
-                                $('#standardized-message').val(response.standardized_message);
-                            },
-                            error: function(error) {
-                                console.error('Error:', error);
-                                $('#standardized-message').val('Error generating standardized message');
-                            }
-                        });
-                    }, doneTypingInterval);
+                // Determine category based on subcategory
+                let category = "negative"; // Default
+                const positiveSubcategories = ["Affirmation", "Merit", "Merit/Record of Achievement"];
+                if (positiveSubcategories.includes(subcategory)) {
+                    category = "positive";
                 }
-            });
+                
+                // Set timer to process after user stops typing
+                typingTimer = setTimeout(function() {
+                    // Send AJAX request to backend
+                    $.ajax({
+                        url: '/standardize_message',
+                        type: 'POST',
+                        data: {
+                            name: messageText,
+                            category: category
+                        },
+                        success: function(response) {
+                            $('#standardized-message').val(response.standardized_message);
+                        },
+                        error: function(error) {
+                            console.error('Error:', error);
+                            $('#standardized-message').val('Error generating standardized message');
+                        }
+                    });
+                }, doneTypingInterval);
+            }
         });
-    </script>
-</body>
-</html>
+    });
+</script>
+{% endblock %}

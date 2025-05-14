@@ -5,17 +5,117 @@ from datetime import datetime
 from setup_db import User, Messages, engine, db_session
 from query_db import add_user, get_user, get_user_by_id
 from openai import OpenAI
-from openai import openai
 import os
 from dotenv import load_dotenv
+from difflib import get_close_matches
 load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
+
 # Initialize Flask application
 app = Flask(__name__, template_folder='Templates')
 app.secret_key = 'your_secret_key'  # Replace in production
 
-# OpenAI client initialization with your API key
-client = OpenAI(api_key="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")
+# Helper functions for message categorization and behavior matching
+def categorize_message(subcategory):
+    positive_subcategories = ["Affirmation", "Merit", "Merit/Record of Achievement"]
+    negative_subcategories = ["Informal Conversation", "Challenge", "White Card", "Friday Detention"]
+
+    if subcategory in positive_subcategories:
+        return "positive"
+    elif subcategory in negative_subcategories:
+        return "negative"
+    else:
+        return "negative"  # default to negative if uncertain
+
+# Define behavior guide dictionary
+BEHAVIOR_GUIDE = {
+    "White Card": [
+        "Repeated disrespect toward staff member",
+        "Repeated organisational issues",
+        "Repeated low level misconduct",
+        "Inappropriate classroom behaviour - disrupting the learning of students",
+        "Significant disruption to the learning of others",
+        "Disrespectful &/or offensive behaviour towards peers",
+        "Challenging a teacher",
+        "Chewing gum",
+        "Swearing",
+        "Breaking phone policy",
+        "Making a purchase from a vending machine on or after the bell",
+        "Disruptive during College assembly/Mass",
+        "Irresponsible use of technology"
+    ],
+    "Challenge": [
+        "Disrespectful toward staff member",
+        "Late to class",
+        "Shift untucked after verbal warning",
+        "Entering a room without permission",
+        "Rowdy classroom entry after being asked to settle",
+        "Eating or drinking in the classroom without permission",
+        "No equipment",
+        "Talking over the teacher",
+        "Talking over other students",
+        "Distracting others from learning",
+        "No attempt of set task",
+        "Interfering with another student's belongings"
+    ],
+    "Affirmation": [
+        "Going the extra mile",
+        "Cleaning up the classroom without being asked",
+        "Volunteers for prayer at the beginning/end of class",
+        "Assisting a peer without being asked",
+        "Assisting a teacher without being asked",
+        "Impressive behaviour in public",
+        "Picking up rubbish without being asked",
+        "Sustained effort over a month",
+        "Outstanding result in an assessment",
+        "Positive use of character strengths",
+        "Being an upstander to inappropriate behaviour"
+    ],
+    "Friday Detention": [
+        "Defiance",
+        "Truancy",
+        "Leaving the classroom without permission",
+        "Ongoing disrespect after White Card has been issued",
+        "Breaking hands-off rule",
+        "Damage to classroom or belongings due to reckless behaviour"
+    ],
+    "Merit / Record of Achievement": [
+        "Sustained effort over a month",
+        "Fulfils the basic expectation of an Augustinian student",
+        "Outstanding result in an assessment task",
+        "Positive use of character strengths",
+        "Being an upstander by challenging inappropriate behaviour towards peers and/or teacher"
+    ]
+}
+
+def find_closest_behavior(user_input, subcategory):
+    behaviors = BEHAVIOR_GUIDE.get(subcategory, [])
+    matches = get_close_matches(user_input, behaviors, n=1, cutoff=0.4)
+    return matches[0] if matches else "general behavior issue"
+
+# OpenAI client initialization with API key from environment variable
+api_key = os.getenv("OPENAI_API_KEY")
+# If no environment variable, use the hardcoded key (not recommended for production)
+if not api_key:
+    api_key = "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"
+client = OpenAI(api_key=api_key)
+
+def generate_ai_message(behavior, subcategory):
+    prompt = f"Write a professional, concise pastoral care message for a student based on the following behavior: '{behavior}'. The incident is categorized as '{subcategory}'."
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a pastoral assistant that creates professional and compassionate messages."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=150,
+            temperature=0.7
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"OpenAI error: {e}")
+        return "Unable to generate message at this time."
 
 # Define the standardize_message_with_openai function
 def standardize_message_with_openai(message_text, category):
@@ -42,13 +142,22 @@ def standardize_message_with_openai(message_text, category):
 # Route for the standardize_message API endpoint
 @app.route('/standardize_message', methods=["POST"])
 def standardize_message_api():
-    message_text = request.form.get('message')
+    print("Request received at standardize_message endpoint")
+    print("Form data:", request.form)
+    
+    # Try to get message from form data
+    message_text = request.form.get('name')
     category = request.form.get('category')
+    
+    print(f"message_text: {message_text}")
+    print(f"category: {category}")
 
     if not message_text or not category:
+        print("Error: Missing message or category")
         return jsonify({"error": "Missing message or category"}), 400
 
     standardized_message = standardize_message_with_openai(message_text, category)
+    print(f"Generated standardized_message: {standardized_message}")
     return jsonify({"standardized_message": standardized_message})
 
 @app.route('/')
@@ -126,16 +235,14 @@ def create_message():
         return redirect(url_for('login'))
 
     message_text = request.form.get('name')
-    severity = request.form.get('severity')
+    subcategory = request.form.get('subcategory')
     standardized_message = request.form.get('standardized_message')
 
-    if not message_text or len(message_text) < 1:
-        flash("Message cannot be empty.", "error")
+    if not message_text or not subcategory:
+        flash("Message and subcategory are required.", "error")
         return redirect(url_for('dashboard'))
 
-    if severity not in ["positive", "negative"]:
-        flash("Invalid severity selected.", "error")
-        return redirect(url_for('dashboard'))
+    severity = categorize_message(subcategory)
 
     if not standardized_message:
         standardized_message = standardize_message_with_openai(message_text, severity)
@@ -144,7 +251,8 @@ def create_message():
         name=message_text,
         user_id=session['user_id'],
         severity=severity,
-        standardized_message=standardized_message
+        standardized_message=standardized_message,
+        subcategory=subcategory  # make sure your model has this
     )
     db_session.add(new_message)
     db_session.commit()
@@ -185,6 +293,16 @@ def shutdown_session(exception=None):
     db_session.remove()
 
 
+@app.route('/generate_message', methods=['GET', 'POST'])
+def generate_message():
+    ai_message = ""
+    if request.method == 'POST':
+        user_input = request.form['message']
+        subcategory = request.form['subcategory']
+        behavior = find_closest_behavior(user_input, subcategory)
+        ai_message = generate_ai_message(behavior, subcategory)
+    return render_template('generate_message.html', ai_message=ai_message)
+
+
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5000)
-

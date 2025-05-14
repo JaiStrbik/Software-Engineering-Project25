@@ -22,5 +22,6 @@ class Messages(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     severity = Column(String, nullable=False)  # Column for severity (positive/negative)
     standardized_message = Column(Text)  # New column for storing standardized messages from OpenAI
+    subcategory = Column(String)  # Added subcategory field
 
 Base.metadata.create_all(bind=engine)
