@@ -40,154 +40,205 @@
 </style>
 {% endblock %}
 
-    {% block content %}
-    <h1 class="mb-4">Dashboard</h1>
+{% block content %}
+<h1 class="mb-4">Dashboard</h1>
 
-    <div class="row dashboard-stats">
-        <div class="col-md-4 mb-4">
-            <div class="stat-card bg-primary">
-                <div class="stat-icon">
-                    <i class="fas fa-comment"></i>
-                </div>
-                <h3>{{ messages|length }}</h3>
-                <p>Total Messages</p>
+<div class="row dashboard-stats">
+    <div class="col-md-4 mb-4">
+        <div class="stat-card bg-primary">
+            <div class="stat-icon">
+                <i class="fas fa-comment"></i>
             </div>
+            <h3>{{ messages|length }}</h3>
+            <p>Total Messages</p>
         </div>
-        <div class="col-md-4 mb-4">
-            <div class="stat-card bg-info">
-                <div class="stat-icon">
-                    <i class="fas fa-user"></i>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="stat-card bg-info">
+            <div class="stat-icon">
+                <i class="fas fa-user"></i>
+            </div>
+            <h3>{{ username }}</h3>
+            <p>Username</p>
+        </div>
+    </div>
+</div>
+
+<h3 class="mb-4">Your Messages</h3>
+
+{% if messages %}
+<div class="row">
+    {% for message in messages %}
+    <div class="col-md-6 mb-4">
+        <div class="card message-card h-100 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <h5 class="card-title">{{ message.name }}</h5>
+                    <form action="{{ url_for('delete_message', message_id=message.id) }}" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-danger btn-sm">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </form>
                 </div>
-                <h3>{{ username }}</h3>
-                <p>Username</p>
+                <p class="card-text text-muted message-date">
+                    <i class="fas fa-clock me-1"></i>{{ message.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                </p>
+                {% if message.standardized_message %}
+                <div class="mt-2">
+                    <h6 class="text-primary">Standardized Pastoral Message:</h6>
+                    <p class="card-text">{{ message.standardized_message }}</p>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="no-messages">
+    <div class="text-center text-muted">
+        <i class="fas fa-comment-slash display-1 mb-3"></i>
+        <h4>No messages yet</h4>
+        <p>Create your first message using the form below</p>
+    </div>
+</div>
+{% endif %}
 
-    <h3 class="mb-4">Your Messages</h3>
-
-    {% if messages %}
-    <div class="row">
-        {% for message in messages %}
-        <div class="col-md-6 mb-4">
-            <div class="card message-card h-100 shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <h5 class="card-title">{{ message.name }}</h5>
-                        <form action="{{ url_for('delete_message', message_id=message.id) }}" method="post" class="d-inline">
-                            <button type="submit" class="btn btn-danger btn-sm">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </form>
-                    </div>
-                    <p class="card-text text-muted message-date">
-                        <i class="fas fa-clock me-1"></i>{{ message.created_at.strftime('%B %d, %Y at %I:%M %p') }}
-                    </p>
-                    {% if message.standardized_message %}
-                    <div class="mt-2">
-                        <h6 class="text-primary">Standardized Pastoral Message:</h6>
-                        <p class="card-text">{{ message.standardized_message }}</p>
-                    </div>
-                    {% endif %}
-                </div>
+<div class="card compose-card shadow-sm">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="card-title mb-0">Pastoral Message</h5>
+        </div>
+        <form action="{{ url_for('create_message') }}" method="post" id="message-form">
+            <div class="mb-3">
+                <input type="text" class="form-control" id="message-name" name="name" placeholder="Enter your message" required>
             </div>
-        </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <div class="no-messages">
-        <div class="text-center text-muted">
-            <i class="fas fa-comment-slash display-1 mb-3"></i>
-            <h4>No messages yet</h4>
-            <p>Create your first message using the form below</p>
-        </div>
-    </div>
-    {% endif %}
-
-    <div class="card compose-card shadow-sm">
-        <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="card-title mb-0">Pastoral Message</h5>
-                <a href="{{ url_for('generate_message') }}" class="btn btn-outline-primary btn-sm">
-                    <i class="fas fa-magic mr-1"></i> AI Message Generator
-                </a>
+            <div class="mb-3">
+                <label for="category" class="form-label">Category:</label>
+                <select class="form-control" id="category" name="category" required>
+                    <option value="">Select a category</option>
+                    <option value="positive">Positive</option>
+                    <option value="negative">Negative</option>
+                </select>
             </div>
-            <form action="{{ url_for('create_message') }}" method="post" id="message-form">
-                <div class="mb-3">
-                    <input type="text" class="form-control" id="message-name" name="name" placeholder="Enter your message" required>
-                </div>
-                <div class="mb-3">
-                    <label for="subcategory" class="form-label">Subcategory:</label>
-                    <select class="form-control" id="subcategory" name="subcategory" required>
-                        <optgroup label="Positive">
-                            <option value="Affirmation">Affirmation</option>
-                            <option value="Merit/Record of Achievement">Merit/Record of Achievement</option>
-                        </optgroup>
-                        <optgroup label="Negative">
-                            <option value="Informal Conversation">Informal Conversation</option>
-                            <option value="Challenge">Challenge</option>
-                            <option value="White Card">White Card</option>
-                            <option value="Friday Detention">Friday Detention</option>
-                        </optgroup>
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label for="standardized-message" class="form-label">Standardized Message</label>
-                    <input type="text" class="form-control" id="standardized-message" name="standardized_message" placeholder="Standardized message will appear here" readonly>
-                </div>
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-paper-plane me-2"></i>Post Message
-                </button>
-            </form>
-        </div>
+            <div class="mb-3">
+                <label for="subcategory" class="form-label">Subcategory:</label>
+                <select class="form-control" id="subcategory" name="subcategory" required disabled>
+                    <option value="">Please select a category first</option>
+                </select>
+            </div>
+            <div class="mb-3" id="standardized-message-container" style="display: none;">
+                <label for="standardized-message" class="form-label">Standardized Message:</label>
+                <textarea class="form-control" id="standardized-message" name="standardized_message" rows="3" readonly></textarea>
+                <small id="standardized-message-status" class="form-text text-muted"></small>
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-paper-plane me-2"></i>Post Message
+            </button>
+        </form>
     </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
+    const subcategories = {
+        positive: [
+            "Affirmation",
+            "Merit/Record of Achievement"
+        ],
+        negative: [
+            "Informal Conversation",
+            "Challenge",
+            "White Card",
+            "Friday Detention"
+        ]
+    };
+
+    function updateSubcategories() {
+        const categorySelect = $("#category");
+        const subcategorySelect = $("#subcategory");
+        const selectedCategory = categorySelect.val();
+
+        subcategorySelect.empty();
+
+        if (!selectedCategory) {
+            subcategorySelect.append("<option value=''>Please select a category first</option>");
+            subcategorySelect.prop("disabled", true);
+            return;
+        }
+
+        subcategorySelect.prop("disabled", false);
+        subcategorySelect.append("<option value=''>Select a subcategory</option>");
+
+        const categorySubcategories = subcategories[selectedCategory] || [];
+        categorySubcategories.forEach(sub => {
+            subcategorySelect.append(`<option value="${sub}">${sub}</option>`);
+        });
+    }
+
+    function standardizeMessage() {
+        $("#standardized-message-status").text("Generating standardized message...");
+
+        $.ajax({
+            url: "/standardize_message",
+            type: "POST",
+            data: {
+                name: $("#message-name").val(),
+                category: $("#category").val(),
+                subcategory: $("#subcategory").val()  // Make sure this is being sent
+            },
+            dataType: "json"
+        })
+        .done(function(data) {
+            if (data.standardized_message) {
+                $("#standardized-message").val(data.standardized_message);
+                $("#standardized-message-status").text("");
+                $("#standardized-message-container").show();
+            } else {
+                $("#standardized-message-status").text("Error: No standardized message returned");
+            }
+        })
+        .fail(function(jqXHR, textStatus, errorThrown) {
+            console.error("AJAX error:", textStatus, errorThrown);
+            $("#standardized-message-status").text("Error: " + textStatus);
+            $("#standardized-message").val("An error occurred while generating the standardized message.");
+            $("#standardized-message-container").show();
+        });
+    }
+
     $(document).ready(function() {
+        updateSubcategories();
+
+        $("#category").on("change", function() {
+            updateSubcategories();
+            $("#standardized-message").val('');
+            $("#standardized-message-container").hide();
+        });
+
         let typingTimer;
-        const doneTypingInterval = 1000; // Wait 1 second after typing stops
-        
-        // When user inputs text and selects a subcategory
-        $('#message-name, #subcategory').on('input change', function() {
+        const doneTypingInterval = 1000;
+
+        $('#message-name, #category, #subcategory').on('input change', function() {
             clearTimeout(typingTimer);
-            
+
             const messageText = $('#message-name').val().trim();
+            const category = $('#category').val();
             const subcategory = $('#subcategory').val();
-            
-            if (messageText.length > 3 && subcategory) { // Only process if text is at least 3 characters and subcategory is selected
-                $('#standardized-message').val('Generating standardized message...');
-                
-                // Determine category based on subcategory
-                let category = "negative"; // Default
-                const positiveSubcategories = ["Affirmation", "Merit", "Merit/Record of Achievement"];
-                if (positiveSubcategories.includes(subcategory)) {
-                    category = "positive";
-                }
-                
-                // Set timer to process after user stops typing
+
+            if (messageText.length > 3 && category && subcategory) {
+                $('#standardized-message-status').text('Generating standardized message...');
+                $('#standardized-message-container').show();
+
                 typingTimer = setTimeout(function() {
-                    // Send AJAX request to backend
-                    $.ajax({
-                        url: '/standardize_message',
-                        type: 'POST',
-                        data: {
-                            name: messageText,
-                            category: category
-                        },
-                        success: function(response) {
-                            $('#standardized-message').val(response.standardized_message);
-                        },
-                        error: function(error) {
-                            console.error('Error:', error);
-                            $('#standardized-message').val('Error generating standardized message');
-                        }
-                    });
+                    standardizeMessage();
                 }, doneTypingInterval);
+            } else {
+                $('#standardized-message-container').hide();
             }
         });
     });
 </script>
 {% endblock %}
+

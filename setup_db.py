@@ -25,3 +25,4 @@ class Messages(Base):
     subcategory = Column(String)  # Added subcategory field
 
 Base.metadata.create_all(bind=engine)
+

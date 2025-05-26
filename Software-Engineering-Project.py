@@ -6,27 +6,15 @@ from setup_db import User, Messages, engine, db_session
 from query_db import add_user, get_user, get_user_by_id
 from openai import OpenAI
 import os
-from dotenv import load_dotenv
 from difflib import get_close_matches
+from dotenv import load_dotenv
 load_dotenv()
 
-# Initialize Flask application
 app = Flask(__name__, template_folder='Templates')
-app.secret_key = 'your_secret_key'  # Replace in production
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "default_fallback_secret")
 
-# Helper functions for message categorization and behavior matching
-def categorize_message(subcategory):
-    positive_subcategories = ["Affirmation", "Merit", "Merit/Record of Achievement"]
-    negative_subcategories = ["Informal Conversation", "Challenge", "White Card", "Friday Detention"]
+client = OpenAI()
 
-    if subcategory in positive_subcategories:
-        return "positive"
-    elif subcategory in negative_subcategories:
-        return "negative"
-    else:
-        return "negative"  # default to negative if uncertain
-
-# Define behavior guide dictionary
 BEHAVIOR_GUIDE = {
     "White Card": [
         "Repeated disrespect toward staff member",
@@ -84,29 +72,81 @@ BEHAVIOR_GUIDE = {
         "Outstanding result in an assessment task",
         "Positive use of character strengths",
         "Being an upstander by challenging inappropriate behaviour towards peers and/or teacher"
+    ],
+    "Informal Conversation": [
+        "Low level issues where a conversation reminds the student of College expectations and resets behaviour"
     ]
+
+ 
 }
+
+def clean_teacher_input(text):
+    return re.sub(r'[^\w\s]', '', text).lower().strip()
+
+def categorize_message(subcategory=None, category=None):
+    if category and category in ["positive", "negative"]:
+        return category
+    positive_subcategories = ["Affirmation", "Merit", "Merit/Record of Achievement"]
+    negative_subcategories = ["Informal Conversation", "Challenge", "White Card", "Friday Detention"]
+    if subcategory in positive_subcategories:
+        return "positive"
+    elif subcategory in negative_subcategories:
+        return "negative"
+    else:
+        return "negative"
+
+def get_severity_level(subcategory):
+    if subcategory in ["Friday Detention"]:
+        return "extremely serious"
+    elif subcategory in {"White Card"}:
+        return "serious"
+    elif subcategory in {"Challenge"}:
+        return "moderate"
+    elif subcategory in {"Informal Conversation"}:
+        return "low level"
+    else:
+        return "positive"
 
 def find_closest_behavior(user_input, subcategory):
     behaviors = BEHAVIOR_GUIDE.get(subcategory, [])
-    matches = get_close_matches(user_input, behaviors, n=1, cutoff=0.4)
-    return matches[0] if matches else "general behavior issue"
-
-# OpenAI client initialization with API key from environment variable
-api_key = os.getenv("OPENAI_API_KEY")
-# If no environment variable, use the hardcoded key (not recommended for production)
-if not api_key:
-    api_key = "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"
-client = OpenAI(api_key=api_key)
+    
+    # Get closest matches with a very low cutoff to ensure we get something
+    matches = get_close_matches(user_input, behaviors, n=1, cutoff=0.000000000001)
+    
+    # If we somehow still don't have matches, just return the first behavior from the subcategory
+    # This ensures we ALWAYS return an actual behavior from the guide
+    if not matches and behaviors:
+        return behaviors[0]
+    elif not matches:
+        # Only as an absolute last resort if behaviors list is empty
+        for key in BEHAVIOR_GUIDE:
+            if BEHAVIOR_GUIDE[key]:
+                return BEHAVIOR_GUIDE[key][0]
+        
+    return matches[0] if matches else "Inappropriate classroom behaviour"
 
 def generate_ai_message(behavior, subcategory):
-    prompt = f"Write a professional, concise pastoral care message for a student based on the following behavior: '{behavior}'. The incident is categorized as '{subcategory}'."
-    
+    if os.getenv("OPENAI_API_KEY") is None:
+        return "AI message generation is currently unavailable. Please check API settings."
+
+    severity = get_severity_level(subcategory)
+
+    prompt = (
+    f"You are a teacher writing a professional, concise pastoral care message for a student based on the behavior: '{behavior}'. "
+    f"This incident is categorized under '{subcategory}', which is considered a {severity} concern. "
+    f"Do not use slang or casual phrases. Avoid terms like 'clowning around' or 'messing about'. "
+    f"Use the exact behavior phrase '{behavior}' from the College behavior guide. Keep the message neutral, clear, and 2–3 sentences long. "
+    f"Tone:\n"
+    f"- Positive: warm and encouraging.\n"
+    f"- Moderate: constructive but firm.\n"
+    f"- Serious: clear, professional, and direct."
+    )
+
     try:
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a pastoral assistant that creates professional and compassionate messages."},
+                {"role": "system", "content": "You are a professional school communication assistant."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=150,
@@ -117,60 +157,116 @@ def generate_ai_message(behavior, subcategory):
         print(f"OpenAI error: {e}")
         return "Unable to generate message at this time."
 
-# Define the standardize_message_with_openai function
-def standardize_message_with_openai(message_text, category):
-    try:
-        if category == "positive":
-            prompt = f"Transform this message into a standardized positive pastoral message: '{message_text}'"
-        else:
-            prompt = f"Transform this message into a standardized pastoral message that addresses concerns: '{message_text}'"
+@app.route('/standardize_message', methods=["POST"])
+def standardize_message_api():
+    message_text = request.form.get('name')
+    category = request.form.get('category', 'negative')
+    subcategory = request.form.get('subcategory')  # Add this line to capture subcategory
+    
+    if not message_text:
+        return jsonify({"error": "Missing message text"}), 400
 
+    try:
+        # Pass subcategory to the function
+        standardized_message = standardize_message_with_openai(message_text, category, subcategory)
+        return jsonify({"standardized_message": standardized_message})
+    except Exception as e:
+        return jsonify({"error": str(e), "standardized_message": "An error occurred processing your message."}), 500
+
+
+def standardize_message_with_openai(message_text, category, subcategory=None):
+    if os.getenv("OPENAI_API_KEY") is None:
+        return "AI message standardization is currently unavailable. Please check API settings."
+
+    # Step 1: Clean the input
+    cleaned_input = clean_teacher_input(message_text)
+    
+    # Step 2: Ensure category is correctly identified based on subcategory
+    if category is None or category == "":
+        category = categorize_message(subcategory)
+    
+    # Step 3: Get valid behaviors for the subcategory
+    subcategory_behaviors = BEHAVIOR_GUIDE.get(subcategory, [])
+    
+    # Step 4: Find closest match from behavior guide - only for the correct category type
+    matched_behavior = find_closest_behavior(cleaned_input, subcategory)
+    
+    # Get severity level for more specific prompting
+    severity_level = get_severity_level(subcategory)
+    
+    # Step 5: Construct prompt
+    system_prompt = (
+        "You are a pastoral care assistant writing professional, concise school messages to parents. "
+        "Your message must include: "
+        "1. A clear statement of the specific positive behavior using formal language "
+        "2. Why this behavior is beneficial for the classroom environment "
+        "3. A brief encouragement to continue this positive behavior "
+        "4. A brief indication that you as the teacher remains committed to supporting the student's growth "
+        "Messages should be formal, respectful, and 2-3 sentences."
+    ) if category == "positive" else (
+        "You are a pastoral care assistant writing professional, concise school messages to parents. "
+        "Your message must include: "
+        "1. A clear statement of the specific behavior concern using formal language "
+        "2. Why this behavior is problematic for the classroom environment "
+        "3. A brief constructive suggestion for improvement "
+        "4. A brief indication that you as the teacher remains committed to supporting the student's growth "
+        "Messages should be formal, respectful, and 2-3 sentences."
+    )
+
+    tone_instruction = (
+        "Write it warmly and encouragingly. This is positive feedback about excellent student behavior." if category == "positive"
+        else f"Write it with a calm, firm, professional tone. This is a {severity_level} behavioral concern."
+    )
+
+    # Modify prompt based on category
+    if category == "positive":
+        user_prompt = (
+            f"Teacher input: '{message_text}'\n"
+            f"Subcategory: {subcategory}\n"
+            f"Matched positive behavior from guide: '{matched_behavior}'\n\n"
+            f"{tone_instruction} You must reference the specific positive behavior '{matched_behavior}' and include encouraging feedback. "
+            f"End with a brief indication that you, as the teacher, remain committed to supporting the student's continued growth. "
+            "Keep it professional and concise (2-3 sentences)."
+        )
+    else:
+        user_prompt = (
+            f"Teacher input: '{message_text}'\n"
+            f"Subcategory: {subcategory}\n"
+            f"Severity level: {severity_level}\n"
+            f"Matched behavior from guide: '{matched_behavior}'\n\n"
+            f"{tone_instruction} You must reference the specific behavior '{matched_behavior}' and include constructive feedback. "
+            f"End with a brief indication that you, as the teacher, remain committed to supporting the student's growth. "
+            "Keep it professional and concise (2-3 sentences)."
+        )
+
+    # Step 6: Generate AI message
+    try:
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a pastoral assistant that rephrases messages to be professional and compassionate."},
-                {"role": "user", "content": prompt}
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
             ],
             max_tokens=150,
-            temperature=0.7
+            temperature=0.6
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
-        print(f"OpenAI error: {e}")
-        return "The message could not be processed at this time."
+        print(f"OpenAI error during standardization: {e}")
+        return "An error occurred while processing the message."
 
-# Route for the standardize_message API endpoint
-@app.route('/standardize_message', methods=["POST"])
-def standardize_message_api():
-    print("Request received at standardize_message endpoint")
-    print("Form data:", request.form)
-    
-    # Try to get message from form data
-    message_text = request.form.get('name')
-    category = request.form.get('category')
-    
-    print(f"message_text: {message_text}")
-    print(f"category: {category}")
 
-    if not message_text or not category:
-        print("Error: Missing message or category")
-        return jsonify({"error": "Missing message or category"}), 400
 
-    standardized_message = standardize_message_with_openai(message_text, category)
-    print(f"Generated standardized_message: {standardized_message}")
-    return jsonify({"standardized_message": standardized_message})
 
 @app.route('/')
 def title_page():
     return render_template('title.html')
-
 
 @app.route('/login', methods=["GET", "POST"])  
 def login():
     if request.method == "POST":
         username = request.form.get('username')
         password = request.form.get('password')
-
         user = get_user(username)
 
         if user and check_password_hash(user.password, password):
@@ -181,9 +277,7 @@ def login():
             return redirect(url_for('dashboard'))
         else:
             flash("Invalid username or password", "error")
-    
     return render_template('login.html')
-
 
 @app.route('/signup', methods=["GET", "POST"])
 def signup():
@@ -204,9 +298,7 @@ def signup():
                 flash("Username already exists. Please choose another username.", "error")
             else:
                 flash(str(e), "error")
-    
     return render_template('signup.html')
-
 
 @app.route('/dashboard')
 def dashboard():
@@ -227,7 +319,6 @@ def dashboard():
                            messages=messages,
                            pastoral_message="Enter pastoral message here")
 
-
 @app.route('/create_message', methods=["POST"])
 def create_message():
     if 'user_id' not in session:
@@ -236,13 +327,14 @@ def create_message():
 
     message_text = request.form.get('name')
     subcategory = request.form.get('subcategory')
+    category = request.form.get('category')
     standardized_message = request.form.get('standardized_message')
 
     if not message_text or not subcategory:
         flash("Message and subcategory are required.", "error")
         return redirect(url_for('dashboard'))
 
-    severity = categorize_message(subcategory)
+    severity = categorize_message(subcategory, category)
 
     if not standardized_message:
         standardized_message = standardize_message_with_openai(message_text, severity)
@@ -252,14 +344,13 @@ def create_message():
         user_id=session['user_id'],
         severity=severity,
         standardized_message=standardized_message,
-        subcategory=subcategory  # make sure your model has this
+        subcategory=subcategory
     )
     db_session.add(new_message)
     db_session.commit()
 
     flash("Message posted successfully!", "success")
     return redirect(url_for('dashboard'))
-
 
 @app.route('/delete_message/<int:message_id>', methods=["POST"])
 def delete_message(message_id):
@@ -279,19 +370,15 @@ def delete_message(message_id):
     flash("Message deleted successfully!", "success")
     return redirect(url_for('dashboard'))
 
-
 @app.route('/logout')
 def logout():
     session.clear()
     flash("You have been logged out successfully.", "success")
     return redirect(url_for('title_page'))
 
-
-
 @app.teardown_appcontext
 def shutdown_session(exception=None):
     db_session.remove()
-
 
 @app.route('/generate_message', methods=['GET', 'POST'])
 def generate_message():
@@ -303,6 +390,9 @@ def generate_message():
         ai_message = generate_ai_message(behavior, subcategory)
     return render_template('generate_message.html', ai_message=ai_message)
 
-
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5000)
+
+
+
+
