@@ -142,8 +142,14 @@ body {
 }
 
 .btn-danger {
-  background-color: var(--danger-color);
-  border-color: var(--danger-color);
+  background-color: #dc3545;
+  border-color: #dc3545;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
 }
 
 .cta-button {

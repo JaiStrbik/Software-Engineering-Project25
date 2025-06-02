@@ -109,21 +109,25 @@ def get_severity_level(subcategory):
 
 def find_closest_behavior(user_input, subcategory):
     behaviors = BEHAVIOR_GUIDE.get(subcategory, [])
+    cleaned_input = clean_teacher_input(user_input)
     
-    # Get closest matches with a very low cutoff to ensure we get something
-    matches = get_close_matches(user_input, behaviors, n=1, cutoff=0.01)
+    # Try to get the closest match from the subcategory with a very low cutoff
+    matches = get_close_matches(cleaned_input, behaviors, n=1, cutoff=0.01)
     
-    # If we somehow still don't have matches, just return the first behavior from the subcategory
-    # This ensures we ALWAYS return an actual behavior from the guide
-    if not matches and behaviors:
+    if matches:
+        return matches[0]
+    
+    # If no match and the subcategory has behaviors, return the first one
+    if behaviors:
         return behaviors[0]
-    elif not matches:
-        # Only as an absolute last resort if behaviors list is empty
-        for key in BEHAVIOR_GUIDE:
-            if BEHAVIOR_GUIDE[key]:
-                return BEHAVIOR_GUIDE[key][0]
-        
-    return matches[0] if matches else "Inappropriate classroom behaviour"
+    
+    # As a last resort, return the first behavior from any non-empty category
+    for category_behaviors in BEHAVIOR_GUIDE.values():
+        if category_behaviors:
+            return category_behaviors[0]
+    
+    # Fallback if somehow everything is empty (shouldn't happen)
+    return "Inappropriate classroom behaviour"
 
 def generate_ai_message(behavior, subcategory):
     if os.getenv("OPENAI_API_KEY") is None:
@@ -307,16 +311,26 @@ def dashboard():
         return redirect(url_for('login'))
 
     user = get_user_by_id(session['user_id'])
-
+    
+    # Get filter parameter
+    filter_type = request.args.get('filter', None)
+    
     positive_messages = db_session.query(Messages).filter_by(user_id=session['user_id'], severity="positive").all()
     negative_messages = db_session.query(Messages).filter_by(user_id=session['user_id'], severity="negative").all()
-    messages = positive_messages + negative_messages
+    
+    if filter_type == 'positive':
+        messages = positive_messages
+    elif filter_type == 'negative':
+        messages = negative_messages
+    else:
+        messages = positive_messages + negative_messages
 
     return render_template('dashboard.html',
                            username=session.get('username', 'User'),
                            positive_messages=positive_messages,
                            negative_messages=negative_messages,
                            messages=messages,
+                           active_filter=filter_type,
                            pastoral_message="Enter pastoral message here")
 
 @app.route('/create_message', methods=["POST"])
@@ -364,6 +378,9 @@ def delete_message(message_id):
         flash("Message not found or you don't have permission to delete it.", "error")
         return redirect(url_for('dashboard'))
 
+    # Add a print statement for debugging
+    print(f"Deleting message {message_id} for user {session['user_id']}")
+    
     db_session.delete(message)
     db_session.commit()
 

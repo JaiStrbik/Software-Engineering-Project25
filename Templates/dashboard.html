@@ -12,6 +12,12 @@
         padding: 20px;
         position: relative;
         overflow: hidden;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
     }
     .stat-card .stat-icon {
         position: absolute;
@@ -22,20 +28,27 @@
     }
     .message-card {
         transition: all 0.3s;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
     }
     .message-card:hover {
         transform: translateY(-5px);
         box-shadow: 0 10px 20px rgba(0,0,0,0.1);
     }
-    .compose-card {
-        margin-bottom: 30px;
+    .message-card .card-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
     }
-    .message-date {
-        font-size: 0.85rem;
+    .message-card .card-title {
+        margin-bottom: 12px;
     }
-    .no-messages {
-        padding: 50px 0;
-        text-align: center;
+    .message-card p {
+        margin-bottom: 8px;
+    }
+    .standardized-text {
+        flex-grow: 1;
     }
 </style>
 {% endblock %}
@@ -44,97 +57,111 @@
 <h1 class="mb-4">Dashboard</h1>
 
 <div class="row dashboard-stats">
-    <div class="col-md-4 mb-4">
-        <div class="stat-card bg-primary">
-            <div class="stat-icon">
-                <i class="fas fa-comment"></i>
-            </div>
-            <h3>{{ messages|length }}</h3>
-            <p>Total Messages</p>
-        </div>
-    </div>
-    <div class="col-md-4 mb-4">
-        <div class="stat-card bg-info">
+    <div class="col-md-4">
+        <div class="card stat-card bg-primary text-white">
             <div class="stat-icon">
                 <i class="fas fa-user"></i>
             </div>
-            <h3>{{ username }}</h3>
-            <p>Username</p>
+            <h5 class="card-title">Welcome</h5>
+            <p class="card-text">{{ username }}</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div id="positive-filter" class="card stat-card bg-success text-white" style="cursor: pointer;" title="Click to filter positive messages">
+            <div class="stat-icon">
+                <i class="fas fa-thumbs-up"></i>
+            </div>
+            <h5 class="card-title">Positive Messages</h5>
+            <p class="card-text">{{ positive_messages|length }}</p>
+            {% if active_filter == 'positive' %}
+            <span class="badge bg-light text-success position-absolute bottom-0 end-0 m-2">Filtered</span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div id="negative-filter" class="card stat-card bg-warning text-white" style="cursor: pointer;" title="Click to filter negative messages">
+            <div class="stat-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h5 class="card-title">Negative Messages</h5>
+            <p class="card-text">{{ negative_messages|length }}</p>
+            {% if active_filter == 'negative' %}
+            <span class="badge bg-light text-warning position-absolute bottom-0 end-0 m-2">Filtered</span>
+            {% endif %}
         </div>
     </div>
 </div>
 
-<h3 class="mb-4">Your Messages</h3>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3>Your Messages</h3>
+    {% if active_filter %}
+    <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-filter"></i> Clear Filter
+    </a>
+    {% endif %}
+</div>
 
 {% if messages %}
 <div class="row">
     {% for message in messages %}
-    <div class="col-md-6 mb-4">
-        <div class="card message-card h-100 shadow-sm">
+    <div class="col-md-4 mb-4">
+        <div class="card message-card">
             <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <h5 class="card-title">{{ message.name }}</h5>
-                    <form action="{{ url_for('delete_message', message_id=message.id) }}" method="post" class="d-inline">
-                        <button type="submit" class="btn btn-danger btn-sm">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h5 class="card-title">{{ message.subcategory }}</h5>
+                    <form action="{{ url_for('delete_message', message_id=message.id) }}" method="POST" style="display: inline;">
+                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')">Delete</button>
                     </form>
                 </div>
-                <p class="card-text text-muted message-date">
-                    <i class="fas fa-clock me-1"></i>{{ message.created_at.strftime('%B %d, %Y at %I:%M %p') }}
-                </p>
-                {% if message.standardized_message %}
-                <div class="mt-2">
-                    <h6 class="text-primary">Standardized Pastoral Message:</h6>
-                    <p class="card-text">{{ message.standardized_message }}</p>
-                </div>
-                {% endif %}
+                <p class="text-muted small">{{ message.created_at.strftime('%B %d, %Y at %I:%M %p') }}</p>
+                <p><strong>Original:</strong> {{ message.name }}</p>
+                <p class="standardized-text"><strong>Standardized:</strong> {{ message.standardized_message }}</p>
             </div>
         </div>
     </div>
     {% endfor %}
 </div>
 {% else %}
-<div class="no-messages">
-    <div class="text-center text-muted">
-        <i class="fas fa-comment-slash display-1 mb-3"></i>
-        <h4>No messages yet</h4>
-        <p>Create your first message using the form below</p>
-    </div>
+<div class="alert alert-info">
+    <p>You haven't created any messages yet. Use the form below to create your first message.</p>
 </div>
 {% endif %}
 
-<div class="card compose-card shadow-sm">
+<div class="card">
     <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="card-title mb-0">Pastoral Message</h5>
-        </div>
-        <form action="{{ url_for('create_message') }}" method="post" id="message-form">
+        <h5 class="card-title">Pastoral Message</h5>
+        <form id="message-form" method="POST" action="{{ url_for('create_message') }}">
             <div class="mb-3">
-                <input type="text" class="form-control" id="message-name" name="name" placeholder="Enter your message" required>
+                <label for="message-name" class="form-label">Message</label>
+                <textarea class="form-control" id="message-name" name="name" rows="3" required></textarea>
             </div>
-            <div class="mb-3">
-                <label for="category" class="form-label">Category:</label>
-                <select class="form-control" id="category" name="category" required>
-                    <option value="">Select a category</option>
-                    <option value="positive">Positive</option>
-                    <option value="negative">Negative</option>
-                </select>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="category" class="form-label">Category</label>
+                    <select class="form-select" id="category" name="category" required>
+                        <option value="" disabled selected>Select a category</option>
+                        <option value="positive">Positive</option>
+                        <option value="negative">Negative</option>
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="subcategory" class="form-label">Subcategory</label>
+                    <select class="form-select" id="subcategory" name="subcategory" required>
+                        <option value="" disabled selected>Select a subcategory</option>
+                    </select>
+                </div>
             </div>
-            <div class="mb-3">
-                <label for="subcategory" class="form-label">Subcategory:</label>
-                <select class="form-control" id="subcategory" name="subcategory" required disabled>
-                    <option value="">Please select a category first</option>
-                </select>
-            </div>
+            
             <div class="mb-3" id="standardized-message-container" style="display: none;">
-                <label for="standardized-message" class="form-label">Standardized Message:</label>
-                <textarea class="form-control" id="standardized-message" name="standardized_message" rows="3" readonly></textarea>
-                <small id="standardized-message-status" class="form-text text-muted"></small>
+                <label for="standardized-message" class="form-label">Standardized Message</label>
+                <textarea class="form-control" id="standardized-message" name="standardized_message" rows="4" readonly></textarea>
+                <div id="standardized-message-status" class="form-text"></div>
             </div>
-            <button type="submit" class="btn btn-primary">
-                <i class="fas fa-paper-plane me-2"></i>Post Message
-            </button>
+            
+            <div class="d-flex justify-content-between">
+                <button type="button" id="standardize-btn" class="btn btn-secondary">Standardize Message</button>
+                <button type="submit" class="btn btn-primary">Post Message</button>
+            </div>
         </form>
     </div>
 </div>
@@ -143,99 +170,115 @@
 {% block scripts %}
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-    const subcategories = {
-        positive: [
-            "Affirmation",
-            "Merit/Record of Achievement"
-        ],
-        negative: [
-            "Informal Conversation",
-            "Challenge",
-            "White Card",
-            "Friday Detention"
-        ]
-    };
-
-    function updateSubcategories() {
-        const categorySelect = $("#category");
-        const subcategorySelect = $("#subcategory");
-        const selectedCategory = categorySelect.val();
-
-        subcategorySelect.empty();
-
-        if (!selectedCategory) {
-            subcategorySelect.append("<option value=''>Please select a category first</option>");
-            subcategorySelect.prop("disabled", true);
-            return;
-        }
-
-        subcategorySelect.prop("disabled", false);
-        subcategorySelect.append("<option value=''>Select a subcategory</option>");
-
-        const categorySubcategories = subcategories[selectedCategory] || [];
-        categorySubcategories.forEach(sub => {
-            subcategorySelect.append(`<option value="${sub}">${sub}</option>`);
-        });
-    }
-
-    function standardizeMessage() {
-        $("#standardized-message-status").text("Generating standardized message...");
-
-        $.ajax({
-            url: "/standardize_message",
-            type: "POST",
-            data: {
-                name: $("#message-name").val(),
-                category: $("#category").val(),
-                subcategory: $("#subcategory").val()  // Make sure this is being sent
-            },
-            dataType: "json"
-        })
-        .done(function(data) {
-            if (data.standardized_message) {
-                $("#standardized-message").val(data.standardized_message);
-                $("#standardized-message-status").text("");
-                $("#standardized-message-container").show();
-            } else {
-                $("#standardized-message-status").text("Error: No standardized message returned");
-            }
-        })
-        .fail(function(jqXHR, textStatus, errorThrown) {
-            console.error("AJAX error:", textStatus, errorThrown);
-            $("#standardized-message-status").text("Error: " + textStatus);
-            $("#standardized-message").val("An error occurred while generating the standardized message.");
-            $("#standardized-message-container").show();
-        });
-    }
-
     $(document).ready(function() {
-        updateSubcategories();
-
-        $("#category").on("change", function() {
-            updateSubcategories();
-            $("#standardized-message").val('');
-            $("#standardized-message-container").hide();
+        // Typing timer variables
+        var typingTimer;
+        var doneTypingInterval = 1000;
+        
+        // Add click handlers for message filtering
+        $('#positive-filter').click(function() {
+            window.location.href = "{{ url_for('dashboard') }}?filter=positive";
         });
-
-        let typingTimer;
-        const doneTypingInterval = 1000;
-
+        
+        $('#negative-filter').click(function() {
+            window.location.href = "{{ url_for('dashboard') }}?filter=negative";
+        });
+        
+        // Handle category change to update subcategory options
+        $('#category').change(function() {
+            var category = $(this).val();
+            var $subcategory = $('#subcategory');
+            $subcategory.empty();
+            
+            if (category === 'positive') {
+                $subcategory.append('<option value="" disabled selected>Select a subcategory</option>');
+                $subcategory.append('<option value="Affirmation">Affirmation</option>');
+                $subcategory.append('<option value="Merit / Record of Achievement">Merit / Record of Achievement</option>');
+            } else if (category === 'negative') {
+                $subcategory.append('<option value="" disabled selected>Select a subcategory</option>');
+                $subcategory.append('<option value="Informal Conversation">Informal Conversation</option>');
+                $subcategory.append('<option value="Challenge">Challenge</option>');
+                $subcategory.append('<option value="White Card">White Card</option>');
+                $subcategory.append('<option value="Friday Detention">Friday Detention</option>');
+            } else {
+                $subcategory.append('<option value="" disabled selected>Select a subcategory</option>');
+            }
+        });
+        
+        // Add validation to ensure category is selected before form submission
+        $('#message-form').on('submit', function(e) {
+            if (!$('#category').val()) {
+                e.preventDefault();
+                alert('Please select a category');
+                return false;
+            }
+            if (!$('#subcategory').val()) {
+                e.preventDefault();
+                alert('Please select a subcategory');
+                return false;
+            }
+        });
+        
+        // Function to standardize message
+        function standardizeMessage() {
+            $("#standardized-message-status").text("Generating standardized message...");
+            
+            $.ajax({
+                url: "/standardize_message",
+                type: "POST",
+                data: {
+                    name: $("#message-name").val(),
+                    category: $("#category").val(),
+                    subcategory: $("#subcategory").val()
+                },
+                dataType: "json"
+            })
+            .done(function(data) {
+                $("#standardized-message").val(data.standardized_message);
+                $("#standardized-message-status").text("Message standardized successfully!");
+            })
+            .fail(function(jqXHR) {
+                var errorMsg = "Error generating standardized message.";
+                if (jqXHR.responseJSON && jqXHR.responseJSON.error) {
+                    errorMsg = jqXHR.responseJSON.error;
+                }
+                $("#standardized-message-status").text(errorMsg);
+            });
+        }
+        
+        // Handle input changes with debounce
         $('#message-name, #category, #subcategory').on('input change', function() {
             clearTimeout(typingTimer);
-
+            
             const messageText = $('#message-name').val().trim();
             const category = $('#category').val();
             const subcategory = $('#subcategory').val();
-
+            
             if (messageText.length > 3 && category && subcategory) {
                 $('#standardized-message-status').text('Generating standardized message...');
                 $('#standardized-message-container').show();
-
+                
                 typingTimer = setTimeout(function() {
                     standardizeMessage();
                 }, doneTypingInterval);
             } else {
                 $('#standardized-message-container').hide();
+            }
+        });
+        
+        // Manual standardize button
+        $("#standardize-btn").click(function(e) {
+            e.preventDefault();
+            
+            const messageText = $('#message-name').val().trim();
+            const category = $('#category').val();
+            const subcategory = $('#subcategory').val();
+            
+            if (messageText.length > 0 && category && subcategory) {
+                $('#standardized-message-container').show();
+                standardizeMessage();
+            } else {
+                alert("Please fill in all required fields.");
             }
         });
     });
