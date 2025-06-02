@@ -111,7 +111,7 @@ def find_closest_behavior(user_input, subcategory):
     behaviors = BEHAVIOR_GUIDE.get(subcategory, [])
     
     # Get closest matches with a very low cutoff to ensure we get something
-    matches = get_close_matches(user_input, behaviors, n=1, cutoff=0.000000000001)
+    matches = get_close_matches(user_input, behaviors, n=1, cutoff=0.01)
     
     # If we somehow still don't have matches, just return the first behavior from the subcategory
     # This ensures we ALWAYS return an actual behavior from the guide
