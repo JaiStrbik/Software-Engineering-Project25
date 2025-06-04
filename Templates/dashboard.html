@@ -93,7 +93,7 @@
 </div>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h3>Your Messages</h3>
+    <h3>Your Pastoral Messages</h3>
     {% if active_filter %}
     <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-outline-secondary">
         <i class="fas fa-filter"></i> Clear Filter
@@ -113,7 +113,7 @@
                         <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')">Delete</button>
                     </form>
                 </div>
-                <p class="text-muted small">{{ message.created_at.strftime('%B %d, %Y at %I:%M %p') }}</p>
+                <p class="text-muted small">{{ message.created_at|aest_time }}</p>
                 <p><strong>Original:</strong> {{ message.name }}</p>
                 <p class="standardized-text"><strong>Standardized:</strong> {{ message.standardized_message }}</p>
             </div>
@@ -160,7 +160,7 @@
             
             <div class="d-flex justify-content-between">
                 <button type="button" id="standardize-btn" class="btn btn-secondary">Standardize Message</button>
-                <button type="submit" class="btn btn-primary">Post Message</button>
+                <button type="submit" id="post-message-btn" class="btn btn-primary" disabled>Post Message</button>
             </div>
         </form>
     </div>
@@ -222,6 +222,8 @@
         // Function to standardize message
         function standardizeMessage() {
             $("#standardized-message-status").text("Generating standardized message...");
+            // Disable submit button while generating
+            $("#post-message-btn").prop('disabled', true);
             
             $.ajax({
                 url: "/standardize_message",
@@ -236,6 +238,8 @@
             .done(function(data) {
                 $("#standardized-message").val(data.standardized_message);
                 $("#standardized-message-status").text("Message standardized successfully!");
+                // Enable submit button after successful standardization
+                $("#post-message-btn").prop('disabled', false);
             })
             .fail(function(jqXHR) {
                 var errorMsg = "Error generating standardized message.";
@@ -243,12 +247,17 @@
                     errorMsg = jqXHR.responseJSON.error;
                 }
                 $("#standardized-message-status").text(errorMsg);
+                // Keep submit button disabled on error
+                $("#post-message-btn").prop('disabled', true);
             });
         }
         
         // Handle input changes with debounce
         $('#message-name, #category, #subcategory').on('input change', function() {
             clearTimeout(typingTimer);
+            
+            // Disable submit button when inputs change
+            $("#post-message-btn").prop('disabled', true);
             
             const messageText = $('#message-name').val().trim();
             const category = $('#category').val();
@@ -269,6 +278,9 @@
         // Manual standardize button
         $("#standardize-btn").click(function(e) {
             e.preventDefault();
+            
+            // Disable submit button when standardizing manually
+            $("#post-message-btn").prop('disabled', true);
             
             const messageText = $('#message-name').val().trim();
             const category = $('#category').val();

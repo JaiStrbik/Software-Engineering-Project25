@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from werkzeug.security import check_password_hash
 import re
 from datetime import datetime
+import pytz
 from setup_db import User, Messages, engine, db_session
 from query_db import add_user, get_user, get_user_by_id
 from openai import OpenAI
@@ -12,6 +13,16 @@ load_dotenv()
 
 app = Flask(__name__, template_folder='Templates')
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "default_fallback_secret")
+
+# Define a jinja filter for timezone conversion
+@app.template_filter('aest_time')
+def aest_time(utc_dt):
+    """Convert UTC datetime to Australian Eastern Standard Time"""
+    if utc_dt is None:
+        return ""
+    aest = pytz.timezone('Australia/Sydney')
+    aest_dt = utc_dt.replace(tzinfo=pytz.UTC).astimezone(aest)
+    return aest_dt.strftime('%B %d, %Y at %I:%M %p')
 
 client = OpenAI()
 
@@ -384,7 +395,6 @@ def delete_message(message_id):
     db_session.delete(message)
     db_session.commit()
 
-    flash("Message deleted successfully!", "success")
     return redirect(url_for('dashboard'))
 
 @app.route('/logout')
