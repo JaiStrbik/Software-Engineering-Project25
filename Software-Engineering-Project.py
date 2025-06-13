@@ -275,7 +275,8 @@ def standardize_message_with_openai(message_text, category, subcategory=None):
 
 @app.route('/')
 def title_page():
-    return render_template('title.html')
+    current_year = datetime.now().year
+    return render_template('title.html', current_year=current_year)
 
 @app.route('/login', methods=["GET", "POST"])  
 def login():

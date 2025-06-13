@@ -1,12 +1,15 @@
 :root {
-  --primary-color: #4361ee;
-  --secondary-color: #3a0ca3;
-  --accent-color: #f72585;
-  --light-color: #f8f9fa;
-  --dark-color: #212529;
-  --success-color: #4cc9f0;
-  --warning-color: #f9c74f;
-  --danger-color: #f94144;
+  --primary-color: #2A9D8F; /* Teal */
+  --secondary-color: #264653; /* Dark Blue/Green */
+  --accent-color: #E9C46A; /* Warm Yellow/Gold */
+  --light-color: #F4F1DE; /* Light Off-White */
+  --dark-color: #1D3557; /* Deep Blue */
+  
+  --success-color: #52B788; /* Green */
+  --warning-color: #FCA311; /* Orange */
+  --danger-color: #E63946; /* Red */
+
+  /* Grays - can be kept or adjusted slightly if needed, ensure good contrast */
   --gray-100: #f8f9fa;
   --gray-200: #e9ecef;
   --gray-300: #dee2e6;
@@ -14,19 +17,19 @@
   --gray-500: #adb5bd;
   --gray-600: #6c757d;
   --gray-700: #495057;
-  --gray-800: #343a40;
-  --gray-900: #212529;
+  --gray-800: #343a40; /* Will be overridden by --dark-color for main text */
+  --gray-900: #212529; /* Will be overridden by --dark-color for main dark elements */
 }
 
 /* Base Elements */
 body {
   font-family: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(135deg, var(--gray-100) 0%, var(--gray-200) 100%);
+  background-color: var(--light-color); /* Updated background */
   padding-top: 56px;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  color: var(--gray-800);
+  color: var(--dark-color); /* Updated default text color */
 }
 
 /* Scrollbar styling */

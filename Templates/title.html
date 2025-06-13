@@ -1,93 +1,221 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome</title>
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f8f9fa;
-        }
-        .navbar {
-            background-color: #343a40;
-        }
-        .navbar-brand, .nav-link {
-            color: #ffffff !important;
-        }
-        .navbar-brand:hover, .nav-link:hover {
-            color: #d4d4d4 !important;
-        }
-        .container {
-            margin-top: 50px;
-        }
-    </style>
-</head>
-<body>
-    {% extends "base.html" %}
+{% extends "base.html" %}
 
-    {% block title %}Welcome{% endblock %}
+{% block title %}Welcome - Pastoral Care Messaging{% endblock %}
 
-    {% block additional_styles %}
-    <style>
-        /* Additional styles specific to this page can remain here */
-    </style>
-    {% endblock %}
+{% block additional_styles %}
+<style>
+  body, html {
+    height: 100%;
+    margin: 0;
+    font-family: var(--font-family-sans-serif, 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif);
+    background-color: var(--background-color, var(--gray-100));
+    color: var(--text-color, var(--gray-800));
+  }
 
-    {% block content %}
-    <div class="hero-section text-center">
-        <h1 class="display-4 fw-bold mb-4">Welcome to MessageBoard</h1>
-        <p class="lead mb-5">A safe place to share your thoughts and connect with others.</p>
-        <div class="d-flex justify-content-center gap-3">
-            {% if 'user_id' not in session %}
-            <a href="{{ url_for('login') }}" class="btn btn-light cta-button">
-                <i class="fas fa-sign-in-alt me-2"></i>Login
-            </a>
-            <a href="{{ url_for('signup') }}" class="btn btn-outline-light cta-button">
-                <i class="fas fa-user-plus me-2"></i>Sign Up
-            </a>
-            {% else %}
-            <a href="{{ url_for('dashboard') }}" class="btn btn-light cta-button">
-                <i class="fas fa-tachometer-alt me-2"></i>Go to Dashboard
-            </a>
-            {% endif %}
+  .hero-section {
+    background: linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.55)), url("https://images.unsplash.com/photo-1505051508008-923feaf90180?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8Y2h1cmNoJTIwY29tbXVuaXR5fGVufDB8fDB8fHww&auto=format&fit=crop&w=1400&q=80");
+    background-size: cover;
+    background-position: center;
+    min-height: 75vh; /* Increased height */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    color: white;
+    padding: 2rem 1rem; /* Bootstrap-like padding */
+  }
+
+  .hero-section h1 {
+    font-size: clamp(2.5rem, 5vw, 4.5rem); /* Responsive font size */
+    font-weight: 700; /* From main.css .navbar-brand like style */
+    margin-bottom: 1.5rem; /* Bootstrap-like margin */
+    text-shadow: 2px 2px 6px rgba(0,0,0,0.75);
+  }
+
+  .hero-section p {
+    font-size: clamp(1.1rem, 2.5vw, 1.5rem); /* Responsive font size */
+    margin-bottom: 2rem; /* Bootstrap-like margin */
+    max-width: 750px;
+    text-shadow: 1px 1px 4px rgba(0,0,0,0.7);
+    font-weight: 300; /* Lighter for subtitle */
+  }
+
+  /* Using .cta-button from main.css, but can add specific overrides here if needed */
+  .hero-section .cta-button {
+    padding: 0.8rem 2.5rem; /* Slightly larger padding */
+    font-size: 1.2rem; /* Slightly larger font */
+    border-radius: 30px; /* Consistent with main.css .cta-button */
+    background-color: var(--primary-color);
+    border: 2px solid var(--primary-color);
+    transition: background-color 0.3s ease, color 0.3s ease, transform 0.3s ease;
+  }
+
+  .hero-section .cta-button:hover {
+    background-color: transparent;
+    color: white;
+    border: 2px solid white;
+    transform: translateY(-3px);
+  }
+  
+  .features-section {
+    padding: 4rem 1rem; /* Bootstrap-like padding */
+    text-align: center;
+    background-color: var(--card-background-color, var(--gray-200)); /* Fallback from main.css */
+  }
+
+  .features-section.bg-alternate { /* For alternating background */
+    background-color: var(--background-color, var(--gray-100));
+  }
+
+  .features-section h2 {
+    font-size: clamp(2rem, 4vw, 3rem); /* Responsive font size */
+    margin-bottom: 3rem; /* Bootstrap-like margin */
+    color: var(--primary-color);
+    font-weight: 600;
+  }
+
+  .feature-card {
+    background-color: white;
+    border-radius: var(--border-radius, 10px); /* From main.css .card */
+    box-shadow: var(--box-shadow, 0 5px 15px rgba(0,0,0,0.08)); /* From main.css .card */
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    height: 100%; /* Ensure cards in a row are same height */
+  }
+
+  .feature-card:hover {
+    transform: translateY(-8px); /* More pronounced hover */
+    box-shadow: 0 12px 24px rgba(0,0,0,0.15); /* Enhanced shadow on hover */
+  }
+
+  .feature-card .card-body {
+    padding: 2rem; /* More padding */
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Center icon and text */
+    text-align: center; /* Center text */
+  }
+  
+  .feature-icon {
+    font-size: 3rem; /* Larger icons */
+    color: var(--primary-color);
+    margin-bottom: 1.5rem;
+    transition: color 0.3s ease;
+  }
+
+  .feature-card:hover .feature-icon {
+    color: var(--secondary-color); /* Change icon color on card hover */
+  }
+
+  .feature-card h3 {
+    font-size: 1.5rem;
+    color: var(--dark-color, var(--gray-800)); /* Use variable from main.css */
+    margin-bottom: 1rem;
+    font-weight: 600;
+  }
+
+  .feature-card p {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--text-color-secondary, var(--gray-700)); /* Use variable */
+  }
+
+  .footer-title {
+    text-align: center;
+    padding: 3rem 1rem; /* More padding */
+    background-color: var(--dark-color, var(--gray-900)); /* Darker footer */
+    color: var(--gray-300, #dee2e6); /* Lighter text for dark background */
+  }
+  .footer-title p {
+    margin: 0;
+    font-size: 0.9rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="hero-section text-white">
+  <div class="container">
+    <h1 class="display-2 fw-bold">Shepherding Hearts, One Message at a Time.</h1>
+    <p class="lead mb-4 pb-2">A dedicated space for pastoral teams to connect, support, and uplift their community through thoughtful communication.</p>
+    <a href="{{ url_for('login') }}" class="btn btn-lg cta-button">Get Started</a>
+  </div>
+</div>
+
+<section class="features-section py-5">
+  <div class="container">
+    <h2 class="text-center mb-5">Why Choose Our Pastoral Platform?</h2>
+    <div class="row gx-lg-5 gy-4">
+      <div class="col-md-4 d-flex align-items-stretch">
+        <div class="card feature-card w-100">
+          <div class="card-body">
+            <i class="fas fa-shield-alt feature-icon"></i>
+            <h3 class="card-title">Secure & Private</h3>
+            <p class="card-text">Communicate with peace of mind. Your messages are kept confidential and secure, fostering a safe environment for pastoral care.</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4 d-flex align-items-stretch">
+        <div class="card feature-card w-100">
+          <div class="card-body">
+            <i class="fas fa-clipboard-list feature-icon"></i>
+            <h3 class="card-title">Organized Messaging</h3>
+            <p class="card-text">Easily manage and track pastoral interactions. Keep notes, categorize messages, and ensure no one slips through the cracks.</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4 d-flex align-items-stretch">
+        <div class="card feature-card w-100">
+          <div class="card-body">
+            <i class="fas fa-users feature-icon"></i>
+            <h3 class="card-title">Community Focused</h3>
+            <p class="card-text">Designed to strengthen your church community by providing a dedicated tool for spiritual guidance and support.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="features-section py-5 bg-alternate">
+    <div class="container">
+        <h2 class="text-center mb-5">Key Features for Your Ministry</h2>
+        <div class="row gx-lg-5 gy-4">
+            <div class="col-md-4 d-flex align-items-stretch">
+                <div class="card feature-card w-100">
+                    <div class="card-body">
+                        <i class="fas fa-magic feature-icon"></i>
+                        <h3 class="card-title">Message Standardization</h3>
+                        <p class="card-text">Ensure clarity and consistency in your communications with our built-in message standardization tool. Refine messages before sending.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 d-flex align-items-stretch">
+                <div class="card feature-card w-100">
+                    <div class="card-body">
+                        <i class="fas fa-brain feature-icon"></i>
+                        <h3 class="card-title">Sentiment Analysis</h3>
+                        <p class="card-text">Gain insights into the emotional tone of messages. Filter and understand the needs of your congregation more effectively.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 d-flex align-items-stretch">
+                <div class="card feature-card w-100">
+                    <div class="card-body">
+                        <i class="far fa-clock feature-icon"></i>
+                        <h3 class="card-title">AEST Timezone Support</h3>
+                        <p class="card-text">All messages are displayed in Australian Eastern Standard Time (AEST), ensuring clear and accurate timestamps for your team.</p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
+</section>
 
-    <div class="row text-center mt-5">
-        <div class="col-md-4">
-            <div class="card feature-card h-100">
-                <div class="feature-icon">
-                    <i class="fas fa-lock"></i>
-                </div>
-                <h3>Secure</h3>
-                <p>Your messages are protected with the latest security standards.</p>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card feature-card h-100">
-                <div class="feature-icon">
-                    <i class="fas fa-bolt"></i>
-                </div>
-                <h3>Fast</h3>
-                <p>Enjoy a lightning-fast experience with our optimized platform.</p>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card feature-card h-100">
-                <div class="feature-icon">
-                    <i class="fas fa-users"></i>
-                </div>
-                <h3>Community</h3>
-                <p>Connect with others and build meaningful relationships.</p>
-            </div>
-        </div>
-    </div>
-    {% endblock %}
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-</body>
-</html>
+<footer class="footer-title text-center py-4">
+  <div class="container">
+    <p class="mb-0">&copy; {{ current_year }} Pastoral Care Messaging. Built with care for communities of faith.</p>
+  </div>
+</footer>
+
+{% endblock %}
