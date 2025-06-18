@@ -17,12 +17,21 @@ app.secret_key = os.getenv("FLASK_SECRET_KEY", "default_fallback_secret")
 # Define a jinja filter for timezone conversion
 @app.template_filter('aest_time')
 def aest_time(utc_dt):
-    """Convert UTC datetime to Australian Eastern Standard Time"""
+    """Convert UTC datetime to Australian Eastern Time"""
     if utc_dt is None:
         return ""
-    aest = pytz.timezone('Australia/Sydney')
-    aest_dt = utc_dt.replace(tzinfo=pytz.UTC).astimezone(aest)
-    return aest_dt.strftime('%B %d, %Y at %I:%M %p')
+    
+    aus_tz = pytz.timezone('Australia/Sydney')
+    
+    # Ensure the datetime is timezone-aware (UTC)
+    if utc_dt.tzinfo is None:
+        utc_dt = pytz.UTC.localize(utc_dt)
+    else:
+        utc_dt = utc_dt.astimezone(pytz.UTC)
+    
+    # Convert to Australian timezone
+    aus_dt = utc_dt.astimezone(aus_tz)
+    return aus_dt.strftime('%B %d, %Y at %I:%M %p')
 
 client = OpenAI()
 
@@ -289,7 +298,7 @@ def login():
             session['user_id'] = user.id
             session['username'] = user.username
             session['joined_date'] = datetime.now().strftime("%Y-%m-%d")
-            flash("Login successful! Welcome back, " + username, "success")
+            # flash("Login successful! Welcome back, " + username, "success")  # Removed per user request
             return redirect(url_for('dashboard'))
         else:
             flash("Invalid username or password", "error")
@@ -324,8 +333,9 @@ def dashboard():
 
     user = get_user_by_id(session['user_id'])
     
-    # Get filter parameter
+    # Get filter parameters
     filter_type = request.args.get('filter', None)
+    filter_date = request.args.get('date', None)
     
     positive_messages = db_session.query(Messages).filter_by(user_id=session['user_id'], severity="positive").all()
     negative_messages = db_session.query(Messages).filter_by(user_id=session['user_id'], severity="negative").all()
@@ -334,6 +344,31 @@ def dashboard():
         messages = positive_messages
     elif filter_type == 'negative':
         messages = negative_messages
+    elif filter_type == 'date' and filter_date:
+        # Filter messages by date (convert to Australian timezone before comparison)
+        from datetime import datetime
+        try:
+            filter_date_obj = datetime.strptime(filter_date, '%Y-%m-%d').date()
+            all_messages = positive_messages + negative_messages
+            aus_tz = pytz.timezone('Australia/Sydney')
+            messages = []
+            
+            for msg in all_messages:
+                # Ensure the datetime is timezone-aware (UTC)
+                if msg.created_at.tzinfo is None:
+                    utc_dt = pytz.UTC.localize(msg.created_at)
+                else:
+                    utc_dt = msg.created_at.astimezone(pytz.UTC)
+                
+                # Convert to Australian timezone
+                aus_dt = utc_dt.astimezone(aus_tz)
+                if aus_dt.date() == filter_date_obj:
+                    messages.append(msg)
+        except ValueError:
+            messages = positive_messages + negative_messages
+    elif filter_type == 'recent':
+        # Sort by most recent first
+        messages = sorted(positive_messages + negative_messages, key=lambda x: x.created_at, reverse=True)
     else:
         messages = positive_messages + negative_messages
 
@@ -417,6 +452,64 @@ def generate_message():
         behavior = find_closest_behavior(user_input, subcategory)
         ai_message = generate_ai_message(behavior, subcategory)
     return render_template('generate_message.html', ai_message=ai_message)
+
+@app.route('/get_message_dates')
+def get_message_dates():
+    if 'user_id' not in session:
+        return jsonify([])
+    
+    messages = db_session.query(Messages).filter_by(user_id=session['user_id']).all()
+    # Convert UTC to Australian timezone before extracting date
+    aus_tz = pytz.timezone('Australia/Sydney')
+    dates = []
+    
+    for msg in messages:
+        # Ensure the datetime is timezone-aware (UTC)
+        if msg.created_at.tzinfo is None:
+            utc_dt = pytz.UTC.localize(msg.created_at)
+        else:
+            utc_dt = msg.created_at.astimezone(pytz.UTC)
+        
+        # Convert to Australian timezone
+        aus_dt = utc_dt.astimezone(aus_tz)
+        dates.append(aus_dt.date().isoformat())
+    
+    return jsonify(list(set(dates)))
+
+@app.route('/debug_dates')
+def debug_dates():
+    if 'user_id' not in session:
+        return jsonify([])
+    
+    messages = db_session.query(Messages).filter_by(user_id=session['user_id']).all()
+    debug_info = []
+    aus_tz = pytz.timezone('Australia/Sydney')
+    
+    for msg in messages:
+        # UTC handling
+        utc_date = msg.created_at.date().isoformat()
+        
+        # Ensure timezone awareness
+        if msg.created_at.tzinfo is None:
+            utc_dt = pytz.UTC.localize(msg.created_at)
+        else:
+            utc_dt = msg.created_at.astimezone(pytz.UTC)
+        
+        # Convert to Australian timezone
+        aus_dt = utc_dt.astimezone(aus_tz)
+        aus_date = aus_dt.date().isoformat()
+        
+        debug_info.append({
+            'message_id': msg.id,
+            'utc_datetime': utc_dt.isoformat(),
+            'utc_date': utc_date,
+            'aus_datetime': aus_dt.isoformat(),
+            'aus_date': aus_date,
+            'timezone_name': aus_dt.tzname(),
+            'message_text': msg.name[:50] + '...' if len(msg.name) > 50 else msg.name
+        })
+    
+    return jsonify(debug_info)
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5000)
