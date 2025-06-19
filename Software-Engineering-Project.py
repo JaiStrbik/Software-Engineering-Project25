@@ -131,23 +131,14 @@ def find_closest_behavior(user_input, subcategory):
     behaviors = BEHAVIOR_GUIDE.get(subcategory, [])
     cleaned_input = clean_teacher_input(user_input)
     
-    # Try to get the closest match from the subcategory with a very low cutoff
-    matches = get_close_matches(cleaned_input, behaviors, n=1, cutoff=0.01)
+    # Try to get the closest match from the subcategory with a reasonable cutoff
+    matches = get_close_matches(cleaned_input, behaviors, n=1, cutoff=0.4)
     
     if matches:
         return matches[0]
     
-    # If no match and the subcategory has behaviors, return the first one
-    if behaviors:
-        return behaviors[0]
-    
-    # As a last resort, return the first behavior from any non-empty category
-    for category_behaviors in BEHAVIOR_GUIDE.values():
-        if category_behaviors:
-            return category_behaviors[0]
-    
-    # Fallback if somehow everything is empty (shouldn't happen)
-    return "Inappropriate classroom behaviour"
+    # If no good match found, return None to indicate no policy match
+    return None
 
 def generate_ai_message(behavior, subcategory):
     if os.getenv("OPENAI_API_KEY") is None:
@@ -220,21 +211,25 @@ def standardize_message_with_openai(message_text, category, subcategory=None):
     
     # Step 5: Construct prompt
     system_prompt = (
-        "You are a pastoral care assistant writing professional, concise school messages to parents. "
-        "Your message must include: "
+        "You are a teacher writing a professional, concise pastoral care message to parents about their child. "
+        "You are initiating this communication to inform the parents about their child's behavior at school. "
+        "If the user's message relates to school policies, your message must include: "
         "1. A clear statement of the specific positive behavior using formal language "
         "2. Why this behavior is beneficial for the classroom environment "
         "3. A brief encouragement to continue this positive behavior "
         "4. A brief indication that you as the teacher remains committed to supporting the student's growth "
-        "Messages should be formal, respectful, and 2-3 sentences."
+        "If the user's message does not relate to one of the school policies that have been provided - please can you rewrite the user input in a professional tone suitable for high school pastoral conversation. "
+        "Write as a teacher communicating TO parents, not responding to them. Messages should be formal, respectful, and 2-3 sentences."
     ) if category == "positive" else (
-        "You are a pastoral care assistant writing professional, concise school messages to parents. "
-        "Your message must include: "
+        "You are a teacher writing a professional, concise pastoral care message to parents about their child. "
+        "You are initiating this communication to inform the parents about their child's behavior at school. "
+        "If the user's message relates to school policies, your message must include: "
         "1. A clear statement of the specific behavior concern using formal language "
         "2. Why this behavior is problematic for the classroom environment "
         "3. A brief constructive suggestion for improvement "
         "4. A brief indication that you as the teacher remains committed to supporting the student's growth "
-        "Messages should be formal, respectful, and 2-3 sentences."
+        "If the user's message does not relate to one of the school policies that have been provided - please can you rewrite the user input in a professional tone suitable for high school pastoral conversation. "
+        "Write as a teacher communicating TO parents, not responding to them. Messages should be formal, respectful, and 2-3 sentences."
     )
 
     tone_instruction = (
@@ -242,26 +237,55 @@ def standardize_message_with_openai(message_text, category, subcategory=None):
         else f"Write it with a calm, firm, professional tone. This is a {severity_level} behavioral concern."
     )
 
-    # Modify prompt based on category
-    if category == "positive":
-        user_prompt = (
-            f"Teacher input: '{message_text}'\n"
-            f"Subcategory: {subcategory}\n"
-            f"Matched positive behavior from guide: '{matched_behavior}'\n\n"
-            f"{tone_instruction} You must reference the specific positive behavior '{matched_behavior}' and include encouraging feedback. "
-            f"End with a brief indication that you, as the teacher, remain committed to supporting the student's continued growth. "
-            "Keep it professional and concise (2-3 sentences)."
-        )
+    # Modify prompt based on category and whether we found a behavior match
+    if matched_behavior:
+        # We found a matching behavior from the school policies
+        if category == "positive":
+            user_prompt = (
+                f"Teacher observation: '{message_text}'\n"
+                f"Subcategory: {subcategory}\n"
+                f"Matched positive behavior from guide: '{matched_behavior}'\n\n"
+                f"Write a message from you as the teacher TO the parents informing them about this positive behavior you observed. "
+                f"{tone_instruction} You must reference the specific positive behavior '{matched_behavior}' and include encouraging feedback. "
+                f"End with a brief indication that you, as the teacher, remain committed to supporting the student's continued growth. "
+                "Keep it professional and concise (2-3 sentences). Do not start with 'Thank you for your message' or similar response phrases."
+            )
+        else:
+            user_prompt = (
+                f"Teacher observation: '{message_text}'\n"
+                f"Subcategory: {subcategory}\n"
+                f"Severity level: {severity_level}\n"
+                f"Matched behavior from guide: '{matched_behavior}'\n\n"
+                f"Write a message from you as the teacher TO the parents informing them about this behavioral concern you observed. "
+                f"{tone_instruction} You must reference the specific behavior '{matched_behavior}' and include constructive feedback. "
+                f"End with a brief indication that you, as the teacher, remain committed to supporting the student's growth. "
+                "Keep it professional and concise (2-3 sentences). Do not start with 'Thank you for your message' or similar response phrases."
+            )
     else:
-        user_prompt = (
-            f"Teacher input: '{message_text}'\n"
-            f"Subcategory: {subcategory}\n"
-            f"Severity level: {severity_level}\n"
-            f"Matched behavior from guide: '{matched_behavior}'\n\n"
-            f"{tone_instruction} You must reference the specific behavior '{matched_behavior}' and include constructive feedback. "
-            f"End with a brief indication that you, as the teacher, remain committed to supporting the student's growth. "
-            "Keep it professional and concise (2-3 sentences)."
-        )
+        # No matching behavior found - rewrite in professional tone using subcategory context
+        if category == "positive":
+            user_prompt = (
+                f"Teacher observation: '{message_text}'\n"
+                f"Subcategory: {subcategory} (positive)\n\n"
+                f"Write a message from you as the teacher TO the parents informing them about this positive observation. "
+                f"This message does not relate to specific behaviors in the school policy guide, but it falls under the positive subcategory '{subcategory}'. "
+                f"Please rewrite the teacher's observation in a professional, warm, and encouraging tone suitable for positive high school pastoral communication with parents. "
+                f"Treat this as positive feedback about the student. "
+                f"End with a brief indication that you, as the teacher, remain committed to supporting the student's continued growth. "
+                f"Keep it professional and concise (2-3 sentences). Do not start with 'Thank you for your message' or similar response phrases."
+            )
+        else:
+            user_prompt = (
+                f"Teacher observation: '{message_text}'\n"
+                f"Subcategory: {subcategory} (negative)\n"
+                f"Severity level: {severity_level}\n\n"
+                f"Write a message from you as the teacher TO the parents informing them about this behavioral concern you observed. "
+                f"This message does not relate to specific behaviors in the school policy guide, but it falls under the {severity_level} severity subcategory '{subcategory}'. "
+                f"Please rewrite the teacher's observation in a professional tone suitable for {severity_level} behavioral concerns in high school pastoral communication with parents. "
+                f"Maintain a {tone_instruction.split('Write it with a ')[1] if 'Write it with a ' in tone_instruction else 'calm, professional'} approach. "
+                f"End with a brief indication that you, as the teacher, remain committed to supporting the student's growth. "
+                f"Keep it professional and concise (2-3 sentences). Do not start with 'Thank you for your message' or similar response phrases."
+            )
 
     # Step 6: Generate AI message
     try:
@@ -366,11 +390,12 @@ def dashboard():
                     messages.append(msg)
         except ValueError:
             messages = positive_messages + negative_messages
-    elif filter_type == 'recent':
-        # Sort by most recent first
-        messages = sorted(positive_messages + negative_messages, key=lambda x: x.created_at, reverse=True)
+    elif filter_type == 'oldest':
+        # Sort by oldest first
+        messages = sorted(positive_messages + negative_messages, key=lambda x: x.created_at, reverse=False)
     else:
-        messages = positive_messages + negative_messages
+        # Default: Sort by most recent first
+        messages = sorted(positive_messages + negative_messages, key=lambda x: x.created_at, reverse=True)
 
     return render_template('dashboard.html',
                            username=session.get('username', 'User'),
@@ -510,6 +535,11 @@ def debug_dates():
         })
     
     return jsonify(debug_info)
+
+@app.route('/about')
+def about():
+    current_year = datetime.now().year
+    return render_template('about.html', current_year=current_year)
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5000)
