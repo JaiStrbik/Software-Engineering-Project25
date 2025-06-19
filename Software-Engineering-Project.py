@@ -35,7 +35,7 @@ def aest_time(utc_dt):
 
 client = OpenAI()
 
-BEHAVIOR_GUIDE = {
+BEHAVIOUR_GUIDE = {
     "White Card": [
         "Repeated disrespect toward staff member",
         "Repeated organisational issues",
@@ -127,12 +127,12 @@ def get_severity_level(subcategory):
     else:
         return "positive"
 
-def find_closest_behavior(user_input, subcategory):
-    behaviors = BEHAVIOR_GUIDE.get(subcategory, [])
+def find_closest_behaviour(user_input, subcategory):
+    behaviours = BEHAVIOUR_GUIDE.get(subcategory, [])
     cleaned_input = clean_teacher_input(user_input)
     
     # Try to get the closest match from the subcategory with a reasonable cutoff
-    matches = get_close_matches(cleaned_input, behaviors, n=1, cutoff=0.4)
+    matches = get_close_matches(cleaned_input, behaviours, n=1, cutoff=0.4)
     
     if matches:
         return matches[0]
@@ -140,17 +140,17 @@ def find_closest_behavior(user_input, subcategory):
     # If no good match found, return None to indicate no policy match
     return None
 
-def generate_ai_message(behavior, subcategory):
+def generate_ai_message(behaviour, subcategory):
     if os.getenv("OPENAI_API_KEY") is None:
         return "AI message generation is currently unavailable. Please check API settings."
 
     severity = get_severity_level(subcategory)
 
     prompt = (
-    f"You are a teacher writing a professional, concise pastoral care message for a student based on the behavior: '{behavior}'. "
+    f"You are a teacher writing a professional, concise pastoral care message for a student based on the behaviour: '{behaviour}'. "
     f"This incident is categorized under '{subcategory}', which is considered a {severity} concern. "
     f"Do not use slang or casual phrases. Avoid terms like 'clowning around' or 'messing about'. "
-    f"Use the exact behavior phrase '{behavior}' from the College behavior guide. Keep the message neutral, clear, and 2–3 sentences long. "
+    f"Use the exact behaviour phrase '{behaviour}' from the College behaviour guide. Keep the message neutral, clear, and 2–3 sentences long. "
     f"Tone:\n"
     f"- Positive: warm and encouraging.\n"
     f"- Moderate: constructive but firm.\n"
@@ -191,7 +191,7 @@ def standardize_message_api():
 
 def standardize_message_with_openai(message_text, category, subcategory=None):
     if os.getenv("OPENAI_API_KEY") is None:
-        return "AI message standardization is currently unavailable. Please check API settings."
+        return "AI message standardisation is currently unavailable. Please check API settings."
 
     # Step 1: Clean the input
     cleaned_input = clean_teacher_input(message_text)
@@ -200,11 +200,11 @@ def standardize_message_with_openai(message_text, category, subcategory=None):
     if category is None or category == "":
         category = categorize_message(subcategory)
     
-    # Step 3: Get valid behaviors for the subcategory
-    subcategory_behaviors = BEHAVIOR_GUIDE.get(subcategory, [])
+    # Step 3: Get valid behaviours for the subcategory
+    subcategory_behaviours = BEHAVIOUR_GUIDE.get(subcategory, [])
     
-    # Step 4: Find closest match from behavior guide - only for the correct category type
-    matched_behavior = find_closest_behavior(cleaned_input, subcategory)
+    # Step 4: Find closest match from behaviour guide - only for the correct category type
+    matched_behaviour = find_closest_behaviour(cleaned_input, subcategory)
     
     # Get severity level for more specific prompting
     severity_level = get_severity_level(subcategory)
@@ -212,20 +212,20 @@ def standardize_message_with_openai(message_text, category, subcategory=None):
     # Step 5: Construct prompt
     system_prompt = (
         "You are a teacher writing a professional, concise pastoral care message to parents about their child. "
-        "You are initiating this communication to inform the parents about their child's behavior at school. "
+        "You are initiating this communication to inform the parents about their child's behaviour at school. "
         "If the user's message relates to school policies, your message must include: "
-        "1. A clear statement of the specific positive behavior using formal language "
-        "2. Why this behavior is beneficial for the classroom environment "
-        "3. A brief encouragement to continue this positive behavior "
+        "1. A clear statement of the specific positive behaviour using formal language "
+        "2. Why this behaviour is beneficial for the classroom environment "
+        "3. A brief encouragement to continue this positive behaviour "
         "4. A brief indication that you as the teacher remains committed to supporting the student's growth "
         "If the user's message does not relate to one of the school policies that have been provided - please can you rewrite the user input in a professional tone suitable for high school pastoral conversation. "
         "Write as a teacher communicating TO parents, not responding to them. Messages should be formal, respectful, and 2-3 sentences."
     ) if category == "positive" else (
         "You are a teacher writing a professional, concise pastoral care message to parents about their child. "
-        "You are initiating this communication to inform the parents about their child's behavior at school. "
+        "You are initiating this communication to inform the parents about their child's behaviour at school. "
         "If the user's message relates to school policies, your message must include: "
-        "1. A clear statement of the specific behavior concern using formal language "
-        "2. Why this behavior is problematic for the classroom environment "
+        "1. A clear statement of the specific behaviour concern using formal language "
+        "2. Why this behaviour is problematic for the classroom environment "
         "3. A brief constructive suggestion for improvement "
         "4. A brief indication that you as the teacher remains committed to supporting the student's growth "
         "If the user's message does not relate to one of the school policies that have been provided - please can you rewrite the user input in a professional tone suitable for high school pastoral conversation. "
@@ -233,20 +233,20 @@ def standardize_message_with_openai(message_text, category, subcategory=None):
     )
 
     tone_instruction = (
-        "Write it warmly and encouragingly. This is positive feedback about excellent student behavior." if category == "positive"
-        else f"Write it with a calm, firm, professional tone. This is a {severity_level} behavioral concern."
+        "Write it warmly and encouragingly. This is positive feedback about excellent student behaviour." if category == "positive"
+        else f"Write it with a calm, firm, professional tone. This is a {severity_level} behavioural concern."
     )
 
     # Modify prompt based on category and whether we found a behavior match
-    if matched_behavior:
-        # We found a matching behavior from the school policies
+    if matched_behaviour:
+        # We found a matching behaviour from the school policies
         if category == "positive":
             user_prompt = (
                 f"Teacher observation: '{message_text}'\n"
                 f"Subcategory: {subcategory}\n"
-                f"Matched positive behavior from guide: '{matched_behavior}'\n\n"
-                f"Write a message from you as the teacher TO the parents informing them about this positive behavior you observed. "
-                f"{tone_instruction} You must reference the specific positive behavior '{matched_behavior}' and include encouraging feedback. "
+                f"Matched positive behaviour from guide: '{matched_behaviour}'\n\n"
+                f"Write a message from you as the teacher TO the parents informing them about this positive behaviour you observed. "
+                f"{tone_instruction} You must reference the specific positive behaviour '{matched_behaviour}' and include encouraging feedback. "
                 f"End with a brief indication that you, as the teacher, remain committed to supporting the student's continued growth. "
                 "Keep it professional and concise (2-3 sentences). Do not start with 'Thank you for your message' or similar response phrases."
             )
@@ -255,14 +255,14 @@ def standardize_message_with_openai(message_text, category, subcategory=None):
                 f"Teacher observation: '{message_text}'\n"
                 f"Subcategory: {subcategory}\n"
                 f"Severity level: {severity_level}\n"
-                f"Matched behavior from guide: '{matched_behavior}'\n\n"
-                f"Write a message from you as the teacher TO the parents informing them about this behavioral concern you observed. "
-                f"{tone_instruction} You must reference the specific behavior '{matched_behavior}' and include constructive feedback. "
+                f"Matched behaviour from guide: '{matched_behaviour}'\n\n"
+                f"Write a message from you as the teacher TO the parents informing them about this behavioural concern you observed. "
+                f"{tone_instruction} You must reference the specific behaviour '{matched_behaviour}' and include constructive feedback. "
                 f"End with a brief indication that you, as the teacher, remain committed to supporting the student's growth. "
                 "Keep it professional and concise (2-3 sentences). Do not start with 'Thank you for your message' or similar response phrases."
             )
     else:
-        # No matching behavior found - rewrite in professional tone using subcategory context
+        # No matching behaviour found - rewrite in professional tone using subcategory context
         if category == "positive":
             user_prompt = (
                 f"Teacher observation: '{message_text}'\n"
@@ -279,9 +279,9 @@ def standardize_message_with_openai(message_text, category, subcategory=None):
                 f"Teacher observation: '{message_text}'\n"
                 f"Subcategory: {subcategory} (negative)\n"
                 f"Severity level: {severity_level}\n\n"
-                f"Write a message from you as the teacher TO the parents informing them about this behavioral concern you observed. "
-                f"This message does not relate to specific behaviors in the school policy guide, but it falls under the {severity_level} severity subcategory '{subcategory}'. "
-                f"Please rewrite the teacher's observation in a professional tone suitable for {severity_level} behavioral concerns in high school pastoral communication with parents. "
+                f"Write a message from you as the teacher TO the parents informing them about this behavioural concern you observed. "
+                f"This message does not relate to specific behaviours in the school policy guide, but it falls under the {severity_level} severity subcategory '{subcategory}'. "
+                f"Please rewrite the teacher's observation in a professional tone suitable for {severity_level} behavioural concerns in high school pastoral communication with parents. "
                 f"Maintain a {tone_instruction.split('Write it with a ')[1] if 'Write it with a ' in tone_instruction else 'calm, professional'} approach. "
                 f"End with a brief indication that you, as the teacher, remain committed to supporting the student's growth. "
                 f"Keep it professional and concise (2-3 sentences). Do not start with 'Thank you for your message' or similar response phrases."
@@ -300,7 +300,7 @@ def standardize_message_with_openai(message_text, category, subcategory=None):
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
-        print(f"OpenAI error during standardization: {e}")
+        print(f"OpenAI error during standardisation: {e}")
         return "An error occurred while processing the message."
 
 
@@ -435,7 +435,6 @@ def create_message():
     db_session.add(new_message)
     db_session.commit()
 
-    flash("Message posted successfully!", "success")
     return redirect(url_for('dashboard'))
 
 @app.route('/delete_message/<int:message_id>', methods=["POST"])
@@ -474,8 +473,8 @@ def generate_message():
     if request.method == 'POST':
         user_input = request.form['message']
         subcategory = request.form['subcategory']
-        behavior = find_closest_behavior(user_input, subcategory)
-        ai_message = generate_ai_message(behavior, subcategory)
+        behaviour = find_closest_behaviour(user_input, subcategory)
+        ai_message = generate_ai_message(behaviour, subcategory)
     return render_template('generate_message.html', ai_message=ai_message)
 
 @app.route('/get_message_dates')

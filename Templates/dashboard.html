@@ -313,9 +313,9 @@
             }
         });
         
-        // Function to standardize message
+        // Function to standardise message
         function standardizeMessage() {
-            $("#standardized-message-status").text("Generating standardized message...");
+            $("#standardized-message-status").text("Generating standardised message...");
             // Disable submit button while generating
             $("#post-message-btn").prop('disabled', true);
             
@@ -331,12 +331,12 @@
             })
             .done(function(data) {
                 $("#standardized-message").val(data.standardized_message);
-                $("#standardized-message-status").text("Message standardized successfully!");
-                // Enable submit button after successful standardization
+                $("#standardized-message-status").text("Message standardised successfully!");
+                // Enable submit button after successful standardisation
                 $("#post-message-btn").prop('disabled', false);
             })
             .fail(function(jqXHR) {
-                var errorMsg = "Error generating standardized message.";
+                var errorMsg = "Error generating standardised message.";
                 if (jqXHR.responseJSON && jqXHR.responseJSON.error) {
                     errorMsg = jqXHR.responseJSON.error;
                 }
