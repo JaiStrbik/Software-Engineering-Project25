@@ -59,8 +59,14 @@
         
         <div class="password-requirements mb-4">
             <p class="mb-2 fw-bold">Password must contain:</p>
-            <div class="requirement" id="letter-requirement">
-                <i class="fas fa-times-circle"></i> At least one letter
+            <div class="requirement" id="length-requirement">
+                <i class="fas fa-times-circle"></i> At least 12 characters
+            </div>
+            <div class="requirement" id="uppercase-requirement">
+                <i class="fas fa-times-circle"></i> At least one uppercase letter (A-Z)
+            </div>
+            <div class="requirement" id="lowercase-requirement">
+                <i class="fas fa-times-circle"></i> At least one lowercase letter (a-z)
             </div>
             <div class="requirement" id="number-requirement">
                 <i class="fas fa-times-circle"></i> At least one number
@@ -84,14 +90,24 @@
 {% block scripts %}
 <script>
     const passwordInput = document.getElementById('password');
-    const letterRequirement = document.getElementById('letter-requirement');
+    const lengthRequirement = document.getElementById('length-requirement');
+    const uppercaseRequirement = document.getElementById('uppercase-requirement');
+    const lowercaseRequirement = document.getElementById('lowercase-requirement');
     const numberRequirement = document.getElementById('number-requirement');
     const specialRequirement = document.getElementById('special-requirement');
     
     passwordInput.addEventListener('keyup', function() {
-        // Validate letter
-        const hasLetter = /[A-Za-z]/.test(passwordInput.value);
-        updateRequirement(letterRequirement, hasLetter);
+        // Validate length (12+ characters)
+        const hasLength = passwordInput.value.length >= 12;
+        updateRequirement(lengthRequirement, hasLength);
+        
+        // Validate uppercase letter
+        const hasUppercase = /[A-Z]/.test(passwordInput.value);
+        updateRequirement(uppercaseRequirement, hasUppercase);
+        
+        // Validate lowercase letter
+        const hasLowercase = /[a-z]/.test(passwordInput.value);
+        updateRequirement(lowercaseRequirement, hasLowercase);
         
         // Validate number
         const hasNumber = /[0-9]/.test(passwordInput.value);
@@ -114,10 +130,113 @@
         }
     }
     
+    // Rate limiting functionality
+    let rateLimitTimer = null;
+    let isRateLimited = false;
+    
+    function checkRateLimit() {
+        fetch('/check_rate_limit')
+            .then(response => response.json())
+            .then(data => {
+                if (data.rate_limited) {
+                    showRateLimitTimer(data.wait_time);
+                } else {
+                    hideRateLimitTimer();
+                }
+            })
+            .catch(error => {
+                console.error('Error checking rate limit:', error);
+            });
+    }
+    
+    function showRateLimitTimer(waitTime) {
+        isRateLimited = true;
+        const submitButton = document.querySelector('button[type="submit"]');
+        const form = document.getElementById('signupForm');
+        
+        // Disable form
+        submitButton.disabled = true;
+        form.style.opacity = '0.6';
+        form.style.pointerEvents = 'none';
+        
+        // Show countdown
+        updateTimerDisplay(waitTime);
+        
+        rateLimitTimer = setInterval(() => {
+            waitTime--;
+            if (waitTime <= 0) {
+                hideRateLimitTimer();
+            } else {
+                updateTimerDisplay(waitTime);
+            }
+        }, 1000);
+    }
+    
+    function updateTimerDisplay(seconds) {
+        const submitButton = document.querySelector('button[type="submit"]');
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        const timeString = minutes > 0 ? `${minutes}m ${remainingSeconds}s` : `${remainingSeconds}s`;
+        
+        submitButton.innerHTML = `<i class="fas fa-clock me-2"></i>Rate Limited - Wait ${timeString}`;
+        
+        // Show alert if not already shown
+        if (!document.getElementById('rate-limit-alert')) {
+            const alertDiv = document.createElement('div');
+            alertDiv.id = 'rate-limit-alert';
+            alertDiv.className = 'alert alert-warning alert-dismissible fade show mt-3';
+            alertDiv.innerHTML = `
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Too Many Attempts!</strong> Please wait for the timer to expire before trying again.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.querySelector('.signup-card').appendChild(alertDiv);
+        }
+    }
+    
+    function hideRateLimitTimer() {
+        isRateLimited = false;
+        const submitButton = document.querySelector('button[type="submit"]');
+        const form = document.getElementById('signupForm');
+        
+        // Re-enable form
+        submitButton.disabled = false;
+        submitButton.innerHTML = '<i class="fas fa-user-plus me-2"></i>Create Account';
+        form.style.opacity = '1';
+        form.style.pointerEvents = 'auto';
+        
+        // Clear timer
+        if (rateLimitTimer) {
+            clearInterval(rateLimitTimer);
+            rateLimitTimer = null;
+        }
+        
+        // Remove alert
+        const alert = document.getElementById('rate-limit-alert');
+        if (alert) {
+            alert.remove();
+        }
+    }
+    
+    // Check rate limit on page load
+    checkRateLimit();
+    
     document.getElementById('signupForm').addEventListener('submit', function(event) {
+        if (isRateLimited) {
+            event.preventDefault();
+            return false;
+        }
+        
         const submitButton = this.querySelector('button[type="submit"]');
         submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creating account...';
         submitButton.disabled = true;
+        
+        // Handle rate limit response
+        this.addEventListener('submit', function(e) {
+            setTimeout(() => {
+                checkRateLimit();
+            }, 1000);
+        });
     });
 </script>
 {% endblock %}

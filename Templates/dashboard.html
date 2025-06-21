@@ -315,7 +315,24 @@
         
         // Function to standardise message
         function standardizeMessage() {
-            $("#standardized-message-status").text("Generating standardised message...");
+            // Client-side validation before making the request
+            var messageText = $("#message-name").val().trim();
+            if (!messageText) {
+                $("#standardized-message-status").html(
+                    '<div class="alert alert-info alert-dismissible fade show p-2 mt-2" role="alert">' +
+                    '<i class="fas fa-info-circle me-2"></i>' +
+                    '<strong>Required Field:</strong> Please fill in all required fields. A message is needed before standardisation can begin.' +
+                    '<button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert" aria-label="Close"></button>' +
+                    '</div>'
+                );
+                // Keep submit button disabled
+                $("#post-message-btn").prop('disabled', true);
+                // Focus on the message field
+                $("#message-name").focus();
+                return;
+            }
+            
+            $("#standardized-message-status").html("Generating standardised message...");
             // Disable submit button while generating
             $("#post-message-btn").prop('disabled', true);
             
@@ -323,7 +340,7 @@
                 url: "/standardize_message",
                 type: "POST",
                 data: {
-                    name: $("#message-name").val(),
+                    name: messageText,
                     category: $("#category").val(),
                     subcategory: $("#subcategory").val()
                 },
@@ -331,20 +348,55 @@
             })
             .done(function(data) {
                 $("#standardized-message").val(data.standardized_message);
-                $("#standardized-message-status").text("Message standardised successfully!");
+                $("#standardized-message-status").html('<div class="text-success"><i class="fas fa-check-circle me-1"></i>Message standardised successfully!</div>');
                 // Enable submit button after successful standardisation
                 $("#post-message-btn").prop('disabled', false);
             })
             .fail(function(jqXHR) {
-                var errorMsg = "Error generating standardised message.";
+                var errorMsg = "Connection error occurred. Please check your internet connection and try again.";
                 if (jqXHR.responseJSON && jqXHR.responseJSON.error) {
                     errorMsg = jqXHR.responseJSON.error;
                 }
-                $("#standardized-message-status").text(errorMsg);
+                
+                // Show error message with retry button
+                $("#standardized-message-status").html(
+                    '<div class="alert alert-warning alert-dismissible fade show p-2 mt-2" role="alert">' +
+                    '<i class="fas fa-exclamation-triangle me-2"></i>' +
+                    '<strong>Standardisation Error:</strong> ' + errorMsg + 
+                    '<div class="mt-2">' +
+                    '<button type="button" class="btn btn-sm btn-outline-primary me-2" id="retry-standardize">' +
+                    '<i class="fas fa-redo me-1"></i>Retry Standardisation' +
+                    '</button>' +
+                    '<button type="button" class="btn btn-sm btn-outline-secondary" id="continue-without-standardize">' +
+                    '<i class="fas fa-forward me-1"></i>Continue Without Standardisation' +
+                    '</button>' +
+                    '</div>' +
+                    '<button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert" aria-label="Close"></button>' +
+                    '</div>'
+                );
+                
                 // Keep submit button disabled on error
                 $("#post-message-btn").prop('disabled', true);
             });
         }
+        
+        // Handle retry standardisation button
+        $(document).on('click', '#retry-standardize', function() {
+            // Clear the error message
+            $("#standardized-message-status").html("");
+            // Retry the standardisation
+            standardizeMessage();
+        });
+        
+        // Handle continue without standardisation button
+        $(document).on('click', '#continue-without-standardize', function() {
+            // Clear the error message
+            $("#standardized-message-status").html('<div class="text-info"><i class="fas fa-info-circle me-1"></i>Proceeding without AI standardisation.</div>');
+            // Copy original message to standardised field
+            $("#standardized-message").val($("#message-name").val());
+            // Enable submit button
+            $("#post-message-btn").prop('disabled', false);
+        });
         
         // Handle input changes with debounce
         $('#message-name, #category, #subcategory').on('input change', function() {
@@ -358,7 +410,7 @@
             const subcategory = $('#subcategory').val();
             
             if (messageText.length > 3 && category && subcategory) {
-                $('#standardized-message-status').text('Generating standardized message...');
+                $('#standardized-message-status').html('Generating standardised message...');
                 $('#standardized-message-container').show();
                 
                 typingTimer = setTimeout(function() {
@@ -384,7 +436,23 @@
                 $('#standardized-message-container').show();
                 standardizeMessage();
             } else {
-                alert("Please fill in all required fields.");
+                // Show nice validation message instead of alert
+                $("#standardized-message-status").html(
+                    '<div class="alert alert-info alert-dismissible fade show p-2 mt-2" role="alert">' +
+                    '<i class="fas fa-info-circle me-2"></i>' +
+                    '<strong>Required Fields:</strong> Please fill in all required fields before standardisation can begin.' +
+                    '<button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert" aria-label="Close"></button>' +
+                    '</div>'
+                );
+                $('#standardized-message-container').show();
+                // Focus on the first empty field
+                if (!messageText) {
+                    $("#message-name").focus();
+                } else if (!category) {
+                    $("#category").focus();
+                } else if (!subcategory) {
+                    $("#subcategory").focus();
+                }
             }
         });
         
@@ -434,7 +502,11 @@
         $('#current-avatar').attr('src', '/static/avatars/' + selectedAvatar);
         
         // Save selection
-        localStorage.setItem('selected-avatar', selectedAvatar);
+        localStorage.setItem(`selected-avatar-${username}`, selectedAvatar);
+        
+        // Hide Apply Changes button when selecting regular avatars
+        $('#applyAvatarChanges').hide();
+        selectedCustomColor = null;
         
         // Close modal after a short delay for visual feedback
         setTimeout(function() {
@@ -443,7 +515,8 @@
     });
 
     // Load saved avatar on page load and highlight selected option
-    const savedAvatar = localStorage.getItem('selected-avatar');
+    const username = "{{ username }}";
+    const savedAvatar = localStorage.getItem(`selected-avatar-${username}`);
     if (savedAvatar) {
         $('#current-avatar').attr('src', '/static/avatars/' + savedAvatar);
         // Highlight the selected avatar in modal
@@ -451,6 +524,81 @@
     } else {
         // Default to first avatar if none selected
         $('#avatar-choice-1').css('border', '3px solid #007bff');
+    }
+
+    // Custom avatar color picker functionality
+    let selectedCustomColor = null;
+    
+    $('#custom-avatar-choice').click(function() {
+        // Set current color if previously selected
+        const currentCustomColor = localStorage.getItem(`custom-avatar-color-${username}`) || '#007bff';
+        $('#customAvatarColorPicker').val(currentCustomColor);
+        selectedCustomColor = currentCustomColor;
+        
+        // Show the Apply Changes button
+        $('#applyAvatarChanges').show();
+        
+        // Immediately open the color picker
+        $('#customAvatarColorPicker').click();
+    });
+
+    $('#customAvatarColorPicker').change(function() {
+        selectedCustomColor = $(this).val();
+        // Don't apply immediately, wait for Apply Changes button
+    });
+
+    // Apply Changes button functionality
+    $('#applyAvatarChanges').click(function() {
+        if (selectedCustomColor) {
+            // Remove selection from all avatars
+            $('.avatar-choice').css('border', '3px solid transparent');
+            
+            // Add selection to custom avatar option
+            $('#custom-avatar-choice').css('border', '3px solid #007bff');
+            
+            // Create a custom avatar with the selected color (using same design as preset avatars)
+            const customAvatarSvg = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="32" cy="32" r="32" fill="${selectedCustomColor}"/>
+                <circle cx="32" cy="24" r="8" fill="white"/>
+                <circle cx="32" cy="48" r="12" fill="white"/>
+            </svg>`;
+            
+            // Convert SVG to data URL and update avatar
+            const dataUrl = 'data:image/svg+xml;base64,' + btoa(customAvatarSvg);
+            $('#current-avatar').attr('src', dataUrl);
+            
+            // Save custom color selection
+            localStorage.setItem(`selected-avatar-${username}`, 'custom');
+            localStorage.setItem(`custom-avatar-color-${username}`, selectedCustomColor);
+            
+            // Hide the Apply Changes button
+            $('#applyAvatarChanges').hide();
+            selectedCustomColor = null;
+            
+            // Close modal after a short delay for visual feedback
+            setTimeout(function() {
+                $('#avatarSelectionModal').modal('hide');
+            }, 500);
+        }
+    });
+
+    // Hide Apply Changes button when modal is closed or other avatars are selected
+    $('#avatarSelectionModal').on('hidden.bs.modal', function() {
+        $('#applyAvatarChanges').hide();
+        selectedCustomColor = null;
+    });
+
+    // Load custom avatar if previously selected
+    if (savedAvatar === 'custom') {
+        const customColor = localStorage.getItem(`custom-avatar-color-${username}`) || '#007bff';
+        const customAvatarSvg = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="32" cy="32" r="32" fill="${customColor}"/>
+            <circle cx="32" cy="24" r="8" fill="white"/>
+            <circle cx="32" cy="48" r="12" fill="white"/>
+        </svg>`;
+        const dataUrl = 'data:image/svg+xml;base64,' + btoa(customAvatarSvg);
+        $('#current-avatar').attr('src', dataUrl);
+        $('#custom-avatar-choice').css('border', '3px solid #007bff');
     }
 
     // Copy message functionality
@@ -611,9 +759,49 @@
     });
 
     // Color customization functionality
+    // Migrate existing colors to user-specific format (one-time migration for original user only)
+    function migrateExistingColors() {
+        // Only migrate if this is likely the original user who set the colors
+        // We do this by checking if ANY user-specific colors exist in localStorage yet
+        const hasAnyUserSpecificColors = Object.keys(localStorage).some(key => 
+            key.includes('-color-') || key.includes('-avatar-')
+        );
+        
+        // If no user-specific colors exist anywhere, this might be the original user
+        if (!hasAnyUserSpecificColors) {
+            const oldPositiveColor = localStorage.getItem('positive-color');
+            const oldNegativeColor = localStorage.getItem('negative-color');
+            const oldAvatar = localStorage.getItem('selected-avatar');
+            const oldCustomColor = localStorage.getItem('custom-avatar-color');
+            
+            // Only migrate if there were actual customizations (not default values)
+            if (oldPositiveColor && oldPositiveColor !== '#28a745') {
+                localStorage.setItem(`positive-color-${username}`, oldPositiveColor);
+            }
+            if (oldNegativeColor && oldNegativeColor !== '#dc3545' && oldNegativeColor !== '#ffc107') {
+                localStorage.setItem(`negative-color-${username}`, oldNegativeColor);
+            }
+            if (oldAvatar) {
+                localStorage.setItem(`selected-avatar-${username}`, oldAvatar);
+            }
+            if (oldCustomColor) {
+                localStorage.setItem(`custom-avatar-color-${username}`, oldCustomColor);
+            }
+            
+            // Clean up old global keys to prevent future migrations
+            localStorage.removeItem('positive-color');
+            localStorage.removeItem('negative-color');
+            localStorage.removeItem('selected-avatar');
+            localStorage.removeItem('custom-avatar-color');
+        }
+    }
+    
+    // Run migration
+    migrateExistingColors();
+    
     let selectedColors = {
-        positive: localStorage.getItem('positive-color') || '#28a745',
-        negative: localStorage.getItem('negative-color') || '#ffc107'
+        positive: localStorage.getItem(`positive-color-${username}`) || '#28a745',
+        negative: localStorage.getItem(`negative-color-${username}`) || '#dc3545'
     };
 
     // Apply saved colors on page load
@@ -651,8 +839,8 @@
 
     // Apply color changes
     $('#apply-colors').click(function() {
-        localStorage.setItem('positive-color', selectedColors.positive);
-        localStorage.setItem('negative-color', selectedColors.negative);
+        localStorage.setItem(`positive-color-${username}`, selectedColors.positive);
+        localStorage.setItem(`negative-color-${username}`, selectedColors.negative);
         applyBannerColors();
         $('#colorCustomizationModal').modal('hide');
     });
@@ -873,9 +1061,22 @@
               <div class="small">Red</div>
             </div>
           </div>
+          <div class="col-6 col-md-4">
+            <div class="text-center">
+              <div class="custom-avatar-option rounded-circle mb-2 d-flex align-items-center justify-content-center" style="width:80px;height:80px;cursor:pointer;border:3px solid transparent;background:linear-gradient(45deg,#ff0000,#ff7f00,#ffff00,#00ff00,#0000ff,#4b0082,#9400d3);margin:0 auto;" id="custom-avatar-choice">
+                <i class="fas fa-palette text-white" style="font-size:24px;text-shadow:1px 1px 2px rgba(0,0,0,0.7);"></i>
+              </div>
+              <div class="small">Custom Color</div>
+            </div>
+          </div>
         </div>
+        <!-- Hidden color picker for custom avatar -->
+        <input type="color" id="customAvatarColorPicker" style="display: none;" value="#007bff">
       </div>
       <div class="modal-footer">
+        <button type="button" class="btn btn-success" id="applyAvatarChanges" style="display: none;">
+          <i class="fas fa-check me-1"></i>Apply Changes
+        </button>
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
       </div>
     </div>

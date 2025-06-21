@@ -63,10 +63,113 @@
 
 {% block scripts %}
 <script>
+    // Rate limiting functionality
+    let rateLimitTimer = null;
+    let isRateLimited = false;
+    
+    function checkRateLimit() {
+        fetch('/check_rate_limit')
+            .then(response => response.json())
+            .then(data => {
+                if (data.rate_limited) {
+                    showRateLimitTimer(data.wait_time);
+                } else {
+                    hideRateLimitTimer();
+                }
+            })
+            .catch(error => {
+                console.error('Error checking rate limit:', error);
+            });
+    }
+    
+    function showRateLimitTimer(waitTime) {
+        isRateLimited = true;
+        const submitButton = document.querySelector('button[type="submit"]');
+        const form = document.getElementById('loginForm');
+        
+        // Disable form
+        submitButton.disabled = true;
+        form.style.opacity = '0.6';
+        form.style.pointerEvents = 'none';
+        
+        // Show countdown
+        updateTimerDisplay(waitTime);
+        
+        rateLimitTimer = setInterval(() => {
+            waitTime--;
+            if (waitTime <= 0) {
+                hideRateLimitTimer();
+            } else {
+                updateTimerDisplay(waitTime);
+            }
+        }, 1000);
+    }
+    
+    function updateTimerDisplay(seconds) {
+        const submitButton = document.querySelector('button[type="submit"]');
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        const timeString = minutes > 0 ? `${minutes}m ${remainingSeconds}s` : `${remainingSeconds}s`;
+        
+        submitButton.innerHTML = `<i class="fas fa-clock me-2"></i>Rate Limited - Wait ${timeString}`;
+        
+        // Show alert if not already shown
+        if (!document.getElementById('rate-limit-alert')) {
+            const alertDiv = document.createElement('div');
+            alertDiv.id = 'rate-limit-alert';
+            alertDiv.className = 'alert alert-warning alert-dismissible fade show mt-3';
+            alertDiv.innerHTML = `
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Too Many Attempts!</strong> Please wait for the timer to expire before trying again.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.querySelector('.auth-card').appendChild(alertDiv);
+        }
+    }
+    
+    function hideRateLimitTimer() {
+        isRateLimited = false;
+        const submitButton = document.querySelector('button[type="submit"]');
+        const form = document.getElementById('loginForm');
+        
+        // Re-enable form
+        submitButton.disabled = false;
+        submitButton.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Login';
+        form.style.opacity = '1';
+        form.style.pointerEvents = 'auto';
+        
+        // Clear timer
+        if (rateLimitTimer) {
+            clearInterval(rateLimitTimer);
+            rateLimitTimer = null;
+        }
+        
+        // Remove alert
+        const alert = document.getElementById('rate-limit-alert');
+        if (alert) {
+            alert.remove();
+        }
+    }
+    
+    // Check rate limit on page load
+    checkRateLimit();
+    
     document.getElementById('loginForm').addEventListener('submit', function(event) {
+        if (isRateLimited) {
+            event.preventDefault();
+            return false;
+        }
+        
         const submitButton = this.querySelector('button[type="submit"]');
         submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Logging in...';
         submitButton.disabled = true;
+        
+        // Handle rate limit response
+        this.addEventListener('submit', function(e) {
+            setTimeout(() => {
+                checkRateLimit();
+            }, 1000);
+        });
     });
 </script>
 {% endblock %}
